@@ -1,5 +1,9 @@
 # Enterprise Metadata Lineage Engine
 
+[![Run Tests](https://github.com/HarshCh017/metadata-lineage-engine/actions/workflows/tests.yml/badge.svg)](https://github.com/HarshCh017/metadata-lineage-engine/actions/workflows/tests.yml)
+
+
+
 Enterprise-grade metadata lineage platform for parsing QlikView scripts and building attribute-level lineage graphs using Neo4j, FastAPI, and automated lineage extraction.
 
 ---
