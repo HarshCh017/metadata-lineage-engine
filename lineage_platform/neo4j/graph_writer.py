@@ -10,6 +10,7 @@ from lineage_platform.models.qlik_models import (
 class GraphWriter:
 
     """
+    Enterprise Neo4j Graph Writer
     Writes lineage metadata into Neo4j.
     """
 
@@ -41,10 +42,13 @@ class GraphWriter:
                     name: $app_name
                 })
 
-                SET q.id = $id,
+                SET q.id = coalesce(q.id, $id),
                     q.type = 'qlik_script',
                     q.source_system = 'QlikView',
-                    q.created_at = $created_at
+                    q.created_at = coalesce(
+                        q.created_at,
+                        $created_at
+                    )
                 """,
                 app_name=app.app_name,
                 id=str(uuid4()),
@@ -67,10 +71,13 @@ class GraphWriter:
                         name: $table_name
                     })
 
-                    SET t.id = $id,
+                    SET t.id = coalesce(t.id, $id),
                         t.layer = 'transform',
                         t.source_system = 'QlikView',
-                        t.created_at = $created_at
+                        t.created_at = coalesce(
+                            t.created_at,
+                            $created_at
+                        )
                     """,
                     table_name=load.table_name,
                     id=str(uuid4()),
@@ -109,9 +116,15 @@ class GraphWriter:
                             name: $source_table
                         })
 
-                        SET s.id = $id,
+                        SET s.id = coalesce(
+                            s.id,
+                            $id
+                        ),
                             s.type = 'source_table',
-                            s.created_at = $created_at
+                            s.created_at = coalesce(
+                                s.created_at,
+                                $created_at
+                            )
                         """,
                         source_table=load.source_table,
                         id=str(uuid4()),
@@ -146,13 +159,31 @@ class GraphWriter:
                             name: $field_name
                         })
 
-                        SET a.id = $id,
-                            a.role = 'dimension',
-                            a.datatype = 'string',
-                            a.is_calculated = false,
-                            a.formula = '',
+                        SET a.id = coalesce(
+                            a.id,
+                            $id
+                        ),
+                            a.role = coalesce(
+                                a.role,
+                                'dimension'
+                            ),
+                            a.datatype = coalesce(
+                                a.datatype,
+                                'string'
+                            ),
+                            a.is_calculated = coalesce(
+                                a.is_calculated,
+                                false
+                            ),
+                            a.formula = coalesce(
+                                a.formula,
+                                ''
+                            ),
                             a.source_system = 'QlikView',
-                            a.created_at = $created_at
+                            a.created_at = coalesce(
+                                a.created_at,
+                                $created_at
+                            )
                         """,
                         field_name=field,
                         id=str(uuid4()),
@@ -194,13 +225,19 @@ class GraphWriter:
                         name: $field_name
                     })
 
-                    SET a.id = $id,
+                    SET a.id = coalesce(
+                        a.id,
+                        $id
+                    ),
                         a.is_calculated = true,
                         a.formula = $formula,
                         a.role = 'measure',
                         a.datatype = 'decimal',
                         a.source_system = 'QlikView',
-                        a.created_at = $created_at
+                        a.created_at = coalesce(
+                            a.created_at,
+                            $created_at
+                        )
                     """,
                     field_name=field.name,
                     formula=field.formula or "",
@@ -294,7 +331,10 @@ class GraphWriter:
                     MERGE (a)-[r:JOINED_WITH]->(b)
 
                     SET r.type = $join_type,
-                        r.created_at = $created_at
+                        r.created_at = coalesce(
+                            r.created_at,
+                            $created_at
+                        )
                     """,
                     source_table=join.source_table,
                     target_table=join.target_table,
@@ -308,4 +348,13 @@ class GraphWriter:
 
     def close(self):
 
-        self.driver.close()
+        """
+        Properly close Neo4j driver.
+        Prevents driver cleanup warnings.
+        """
+
+        if self.driver:
+
+            self.driver.close()
+
+            self.driver = None

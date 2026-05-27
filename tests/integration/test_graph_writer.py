@@ -17,7 +17,8 @@ def test_graph_writer_creation():
 
     writer = GraphWriter()
 
+    writer.write_app(app)
+
     assert writer is not None
 
-    assert app is not None
-    
+    writer.close()
