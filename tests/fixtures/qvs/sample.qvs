@@ -1,0 +1,16 @@
+Customer:
+
+LOAD
+    CustomerID,
+    CustomerName,
+    UPPER(CustomerName) AS CustomerName_Upper
+FROM customers.csv;
+
+Orders:
+
+LOAD
+    OrderID,
+    CustomerID,
+    Amount,
+    Amount * 1.18 AS AmountWithTax
+FROM orders.csv;

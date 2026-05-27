@@ -207,17 +207,33 @@ class FieldParser:
             if lower_field.startswith('from '):
                 continue
 
-            # Preserve FULL field expression
-            # IMPORTANT:
-            # Keep aliases + formulas intact for lineage
-            #
+            # --------------------------------------------------
+            # Extract aliases
             # Example:
-            # UPPER(CustomerName) AS CustomerName_Upper
-            #
-            # MUST NOT become:
-            # CustomerName_Upper
-            #
+            # UPPER(Name) AS Name_Upper
+            # -> Name_Upper
+            # --------------------------------------------------
 
-            cleaned_fields.append(field)
+            alias_match = re.search(
+                r'\s+AS\s+([A-Za-z0-9_]+)',
+                field,
+                flags=re.IGNORECASE
+            )
+
+            if alias_match:
+
+                cleaned_fields.append(
+                    alias_match.group(1)
+                )
+
+            else:
+
+                # --------------------------------------------------
+                # Keep simple field
+                # --------------------------------------------------
+
+                cleaned_fields.append(
+                    field.strip()
+                )
 
         return cleaned_fields
