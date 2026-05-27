@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environment
+.venv/
+venv/
+
+# Environment Files
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# Neo4j
+*.db
+
+# Logs
+*.log
+
+# OS Files
+.DS_Store
+Thumbs.db

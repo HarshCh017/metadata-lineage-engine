@@ -1,0 +1,295 @@
+/******************************************************************************************
+ENTERPRISE TEST SCENARIO
+-------------------------------------------------------------------------------------------
+Purpose:
+This QVS script is designed to stress test the lineage platform with:
+
+✓ SQL LOAD lineage
+✓ RESIDENT lineage
+✓ Multiple JOIN types
+✓ Synthetic/calculated fields
+✓ Aggregations
+✓ Concatenate operations
+✓ ApplyMap functions
+✓ IF conditions
+✓ Nested transformations
+✓ Multi-hop lineage
+✓ Derived attributes
+✓ Dashboard-ready reporting tables
+✓ Enterprise-style naming conventions
+
+Expected Neo4j Output:
+- Table lineage
+- Column-level lineage
+- DERIVED_FROM relationships
+- JOINED_WITH relationships
+- READS_FROM relationships
+- Multi-hop lineage chains
+
+Recommended Test File Name:
+99_enterprise_lineage_test.qvs
+******************************************************************************************/
+
+// ========================================================================================
+// CONNECTION
+// ========================================================================================
+
+LIB CONNECT TO 'EDW_PROD_TERADATA';
+
+
+// ========================================================================================
+// CUSTOMER MASTER
+// ========================================================================================
+
+CustomerMaster:
+
+LOAD
+    CustomerID,
+    CustomerName,
+    CountryCode,
+    Status,
+    SignupDate,
+
+    // Synthetic fields
+    UPPER(CustomerName) AS CustomerName_Upper,
+
+    IF(
+        Status = 'A',
+        'Active',
+        'Inactive'
+    ) AS CustomerStatus,
+
+    Year(SignupDate) AS SignupYear,
+
+    ApplyMap(
+        'RegionMap',
+        CountryCode,
+        'Unknown'
+    ) AS Region;
+
+SQL SELECT
+    CustomerID,
+    CustomerName,
+    CountryCode,
+    Status,
+    SignupDate
+FROM PROD_EDW.CRM.CUSTOMER_MASTER;
+
+
+// ========================================================================================
+// SALES ORDERS
+// ========================================================================================
+
+SalesOrders:
+
+LOAD
+    OrderID,
+    CustomerID,
+    ProductID,
+    OrderDate,
+    Amount,
+
+    // Tax calculation
+    Amount * 1.18 AS AmountWithTax,
+
+    // Discount bucket
+    IF(
+        Amount > 10000,
+        'HIGH',
+        'LOW'
+    ) AS RevenueBucket,
+
+    Month(OrderDate) AS OrderMonth,
+    Year(OrderDate) AS OrderYear;
+
+SQL SELECT
+    OrderID,
+    CustomerID,
+    ProductID,
+    OrderDate,
+    Amount
+FROM PROD_EDW.SALES.ORDER_FACT;
+
+
+// ========================================================================================
+// PRODUCT MASTER
+// ========================================================================================
+
+ProductMaster:
+
+LOAD
+    ProductID,
+    ProductName,
+    Category,
+    SubCategory,
+
+    // Derived field
+    Category & '-' & SubCategory AS ProductHierarchy;
+
+SQL SELECT
+    ProductID,
+    ProductName,
+    Category,
+    SubCategory
+FROM PROD_EDW.MDM.PRODUCT_MASTER;
+
+
+// ========================================================================================
+// CUSTOMER + SALES JOIN
+// ========================================================================================
+
+// Implicit join target = SalesOrders
+
+LEFT JOIN LOAD
+    CustomerID,
+    CustomerName,
+    Region,
+    CustomerStatus
+RESIDENT CustomerMaster;
+
+
+// ========================================================================================
+// PRODUCT JOIN
+// ========================================================================================
+
+INNER JOIN (SalesOrders)
+
+LOAD
+    ProductID,
+    ProductName,
+    Category,
+    ProductHierarchy
+RESIDENT ProductMaster;
+
+
+// ========================================================================================
+// DAILY SALES SUMMARY
+// ========================================================================================
+
+DailySalesSummary:
+
+LOAD
+    CustomerID,
+    OrderDate,
+
+    SUM(Amount) AS TotalAmount,
+
+    SUM(AmountWithTax) AS TotalAmountWithTax,
+
+    AVG(Amount) AS AverageAmount,
+
+    COUNT(OrderID) AS OrderCount,
+
+    MAX(Amount) AS MaxOrderAmount,
+
+    MIN(Amount) AS MinOrderAmount
+
+RESIDENT SalesOrders
+
+GROUP BY
+    CustomerID,
+    OrderDate;
+
+
+// ========================================================================================
+// CUSTOMER KPI TABLE
+// ========================================================================================
+
+CustomerKPI:
+
+LOAD
+    CustomerID,
+
+    SUM(TotalAmount) AS LifetimeRevenue,
+
+    SUM(OrderCount) AS LifetimeOrders,
+
+    AVG(AverageAmount) AS AvgBasketValue,
+
+    MAX(MaxOrderAmount) AS HighestOrder,
+
+    IF(
+        SUM(TotalAmount) > 100000,
+        'VIP',
+        'STANDARD'
+    ) AS CustomerTier
+
+RESIDENT DailySalesSummary
+
+GROUP BY
+    CustomerID;
+
+
+// ========================================================================================
+// CONCATENATE TEST
+// ========================================================================================
+
+CONCATENATE (DailySalesSummary)
+
+LOAD
+    CustomerID,
+    Today() AS OrderDate,
+    0 AS TotalAmount,
+    0 AS TotalAmountWithTax,
+    0 AS AverageAmount,
+    0 AS OrderCount,
+    0 AS MaxOrderAmount,
+    0 AS MinOrderAmount
+
+AUTOGENERATE 1;
+
+
+// ========================================================================================
+// FINAL DASHBOARD DATASET
+// ========================================================================================
+
+DashboardDataset:
+
+LOAD
+    s.CustomerID,
+    s.OrderDate,
+    s.TotalAmount,
+    s.TotalAmountWithTax,
+    s.OrderCount,
+
+    k.LifetimeRevenue,
+    k.CustomerTier,
+
+    c.CustomerName,
+    c.Region,
+    c.CustomerStatus
+
+RESIDENT DailySalesSummary AS s;
+
+LEFT JOIN (DashboardDataset)
+
+LOAD
+    CustomerID,
+    LifetimeRevenue,
+    CustomerTier
+
+RESIDENT CustomerKPI AS k;
+
+LEFT JOIN (DashboardDataset)
+
+LOAD
+    CustomerID,
+    CustomerName,
+    Region,
+    CustomerStatus
+
+RESIDENT CustomerMaster AS c;
+
+
+// ========================================================================================
+// CLEANUP
+// ========================================================================================
+
+DROP TABLE ProductMaster;
+DROP TABLE CustomerMaster;
+DROP TABLE CustomerKPI;
+
+
+// ========================================================================================
+// END OF SCRIPT
+// ========================================================================================
