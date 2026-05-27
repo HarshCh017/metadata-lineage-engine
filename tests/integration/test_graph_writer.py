@@ -1,3 +1,7 @@
+import pytest
+
+from neo4j.exceptions import ServiceUnavailable
+
 from lineage_platform.parsers.qlikview.qvs_parser import (
     QVSParser
 )
@@ -17,8 +21,18 @@ def test_graph_writer_creation():
 
     writer = GraphWriter()
 
-    writer.write_app(app)
+    try:
 
-    assert writer is not None
+        writer.write_app(app)
 
-    writer.close()
+        assert writer is not None
+
+    except ServiceUnavailable:
+
+        pytest.skip(
+            "Neo4j database not available"
+        )
+
+    finally:
+
+        writer.close()
