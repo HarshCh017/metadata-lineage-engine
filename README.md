@@ -1,14 +1,43 @@
-# Enterprise Lineage Platform
+# Enterprise Metadata Lineage Engine
 
-Enterprise metadata lineage platform for parsing QlikView scripts and building attribute-level lineage graphs in Neo4j.
+Enterprise-grade metadata lineage platform for parsing QlikView scripts and building attribute-level lineage graphs using Neo4j, FastAPI, and automated lineage extraction.
 
 ---
 
-# Features
+# Badges
 
-## Current Capabilities
+![Python](https://img.shields.io/badge/Python-3.11-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-API-green)
+![Neo4j](https://img.shields.io/badge/Neo4j-GraphDB-brightgreen)
+![Pytest](https://img.shields.io/badge/Tests-Pytest-orange)
+![Coverage](https://img.shields.io/badge/Coverage-66%25-yellow)
+![License](https://img.shields.io/badge/License-Educational-lightgrey)
 
-### QlikView Parsing
+---
+
+# Overview
+
+This project is an enterprise-style metadata lineage engine designed to parse QlikView scripts and generate graph-based lineage relationships inside Neo4j.
+
+The platform supports:
+
+- QlikView lineage parsing
+- SQL lineage extraction
+- Attribute-level lineage
+- Multi-hop dependency tracking
+- Synthetic field tracing
+- Neo4j graph modeling
+- FastAPI metadata APIs
+- Automated testing & CI/CD
+
+The project simulates real-world enterprise lineage systems used in large-scale data environments.
+
+---
+
+# Key Features
+
+## QlikView Parsing
+
 - SQL LOAD parsing
 - RESIDENT LOAD parsing
 - JOIN parsing
@@ -16,30 +45,52 @@ Enterprise metadata lineage platform for parsing QlikView scripts and building a
 - GROUP BY parsing
 - Synthetic field extraction
 - Aggregation lineage
-- ApplyMap parsing
+- ApplyMap lineage
 - IF condition lineage
 
-### Metadata Lineage
+---
+
+## Metadata Lineage
+
 - Table-level lineage
-- Column-level lineage
 - Attribute-level lineage
-- Multi-hop lineage
-- Derived field tracing
-- Join relationships
+- Column lineage
+- Derived field tracking
+- Join lineage
+- Multi-hop lineage traversal
 - Source-to-target mapping
 
-### Neo4j Graph
-- Graph-based lineage storage
+---
+
+## Neo4j Graph Engine
+
+- Graph-based metadata storage
 - Relationship traversal
 - Interactive graph visualization
 - Metadata enrichment
 - UUID node identification
+- Lineage relationship modeling
 
-### FastAPI Backend
+---
+
+## FastAPI Backend
+
 - Metadata APIs
 - Node detail APIs
 - Health APIs
-- Swagger documentation
+- Swagger/OpenAPI documentation
+
+---
+
+## Automated Testing
+
+- Unit testing
+- Integration testing
+- Parser validation
+- SQL parser tests
+- Graph writer tests
+- Fixture-based testing
+- Coverage reporting
 
 ---
 
@@ -63,80 +114,65 @@ QlikView Script (.qvs)
 
 ---
 
+# Technology Stack
+
+| Component | Technology |
+|---|---|
+| Language | Python |
+| API Framework | FastAPI |
+| Graph Database | Neo4j |
+| SQL Parsing | sqlglot |
+| Testing | pytest |
+| CI/CD | GitHub Actions |
+| Containerization | Docker |
+| Visualization | Neo4j Browser |
+
+---
+
 # Project Structure
 
 ```text
 lineage-platform/
 │
 ├── lineage_platform/
-│   │
 │   ├── api/
-│   │   ├── app.py
-│   │   └── routes/
-│   │       ├── lineage_routes.py
-│   │       └── node_details.py
-│   │
 │   ├── batch/
-│   │   └── file_discovery.py
-│   │
 │   ├── cli/
-│   │   └── main.py
-│   │
+│   ├── core/
+│   ├── lineage/
 │   ├── models/
-│   │   └── qlik_models.py
-│   │
 │   ├── neo4j/
-│   │   └── graph_writer.py
-│   │
-│   ├── parsers/
-│   │   └── qlikview/
-│   │       ├── qvs_parser.py
-│   │       ├── field_parser.py
-│   │       ├── join_parser.py
-│   │       ├── synthetic_field_parser.py
-│   │       ├── sql_parser.py
-│   │       └── connection_parser.py
-│   │
-│   └── utils/
+│   └── parsers/
+│
+├── tests/
+│   ├── api/
+│   ├── fixtures/
+│   ├── integration/
+│   └── unit/
 │
 ├── data/
-│   └── input/
-│       └── qlikview/
-│
+├── .github/
+├── Dockerfile
+├── docker-compose.yml
+├── pytest.ini
 ├── requirements.txt
-├── README.md
-└── .env
-```
-
----
-
-# Requirements
-
-## Recommended Python Version
-
-```text
-Python 3.11.x
-```
-
-Avoid:
-```text
-Python 3.12+
+└── README.md
 ```
 
 ---
 
 # Installation
 
-## 1. Clone Project
+## Clone Repository
 
-```powershell
-git clone <repo-url>
-cd lineage-platform
+```bash
+git clone https://github.com/HarshCh017/metadata-lineage-engine.git
+cd metadata-lineage-engine
 ```
 
 ---
 
-## 2. Create Virtual Environment
+## Create Virtual Environment
 
 ```powershell
 python -m venv .venv
@@ -144,9 +180,7 @@ python -m venv .venv
 
 ---
 
-## 3. Activate Virtual Environment
-
-### Windows PowerShell
+## Activate Environment
 
 ```powershell
 .\.venv\Scripts\Activate
@@ -154,7 +188,7 @@ python -m venv .venv
 
 ---
 
-## 4. Install Dependencies
+## Install Dependencies
 
 ```powershell
 pip install -r requirements.txt
@@ -164,25 +198,22 @@ pip install -r requirements.txt
 
 # Neo4j Setup
 
-## Install Neo4j
-
-Download:
+Install Neo4j Desktop:
 
 https://neo4j.com/download/
 
+Default configuration:
+
+| Property | Value |
+|---|---|
+| Bolt URL | bolt://localhost:7687 |
+| Browser | http://localhost:7474 |
+
 ---
 
-## Start Neo4j
+# Environment Variables
 
-Default:
-- Bolt URL: `bolt://localhost:7687`
-- Browser: `http://localhost:7474`
-
----
-
-## Create `.env`
-
-Create file:
+Create:
 
 ```text
 .env
@@ -198,13 +229,26 @@ NEO4J_PASSWORD=password
 
 ---
 
-# Running the Parser
+# Running Enterprise Test Scenario
+
+The repository includes:
+
+```text
+99_enterprise_lineage_test.qvs
+```
+
+which validates:
+
+- SQL lineage
+- joins
+- aggregations
+- synthetic fields
+- multi-hop lineage
+- metadata APIs
 
 ---
 
-# Parse Single QVS File
-
-Example:
+# Parse Enterprise Test File
 
 ```powershell
 python -c "from lineage_platform.parsers.qlikview.qvs_parser import QVSParser; parser = QVSParser(); app = parser.parse('data/input/qlikview/99_enterprise_lineage_test.qvs'); print(app)"
@@ -212,20 +256,7 @@ python -c "from lineage_platform.parsers.qlikview.qvs_parser import QVSParser; p
 
 ---
 
-# Validate Parsing
-
-```powershell
-python -c "from lineage_platform.parsers.qlikview.qvs_parser import QVSParser; parser = QVSParser(); app = parser.parse('data/input/qlikview/99_enterprise_lineage_test.qvs'); print('LOAD COUNT:', len(app.loads)); print('JOINS:', len(app.joins)); print('FIELDS:', len(app.fields))"
-```
-
-Expected:
-- multiple LOAD blocks
-- multiple joins
-- synthetic fields
-
----
-
-# Load Data into Neo4j
+# Load Lineage Graph into Neo4j
 
 ```powershell
 python -c "from lineage_platform.parsers.qlikview.qvs_parser import QVSParser; from lineage_platform.neo4j.graph_writer import GraphWriter; parser = QVSParser(); app = parser.parse('data/input/qlikview/99_enterprise_lineage_test.qvs'); writer = GraphWriter(); writer.write_app(app); print('GRAPH WRITTEN SUCCESSFULLY')"
@@ -235,9 +266,7 @@ python -c "from lineage_platform.parsers.qlikview.qvs_parser import QVSParser; f
 
 # Neo4j Queries
 
----
-
-# View Entire Graph
+## View Entire Graph
 
 ```cypher
 MATCH (n)
@@ -247,26 +276,7 @@ LIMIT 100
 
 ---
 
-# View Relationships
-
-```cypher
-MATCH (a)-[r]->(b)
-RETURN a,r,b
-LIMIT 200
-```
-
----
-
-# View Table Lineage
-
-```cypher
-MATCH (a:QlikTable)-[:READS_FROM]->(b)
-RETURN a.name, b.name
-```
-
----
-
-# View Attribute Lineage
+## View Attribute Lineage
 
 ```cypher
 MATCH (a:Attribute)-[:DERIVED_FROM]->(b)
@@ -276,7 +286,7 @@ ORDER BY a.name
 
 ---
 
-# View Multi-Hop Lineage
+## View Multi-Hop Lineage
 
 ```cypher
 MATCH path = (a:Attribute)-[:DERIVED_FROM*]->(b)
@@ -285,7 +295,7 @@ RETURN path
 
 ---
 
-# View Join Relationships
+## View Join Relationships
 
 ```cypher
 MATCH (a:QlikTable)-[r:JOINED_WITH]->(b)
@@ -294,16 +304,9 @@ RETURN a.name, r.type, b.name
 
 ---
 
-# Clear Graph
+# FastAPI Backend
 
-```cypher
-MATCH (n)
-DETACH DELETE n
-```
-
----
-
-# Start FastAPI
+## Start API Server
 
 ```powershell
 python -m uvicorn lineage_platform.api.app:app --reload
@@ -311,7 +314,7 @@ python -m uvicorn lineage_platform.api.app:app --reload
 
 ---
 
-# Open Swagger Docs
+## Swagger Documentation
 
 ```text
 http://127.0.0.1:8000/docs
@@ -319,67 +322,92 @@ http://127.0.0.1:8000/docs
 
 ---
 
-# API Endpoints
+# Example API Endpoints
 
-## Health Check
+| Endpoint | Description |
+|---|---|
+| `/health` | Health check |
+| `/api/v1/node/{node_id}` | Node metadata |
+| `/docs` | Swagger documentation |
 
-```text
-GET /health
+---
+
+# Testing
+
+## Run All Tests
+
+```powershell
+pytest
 ```
 
 ---
 
-## Node Metadata
+## Run Coverage
 
-```text
-GET /api/v1/node/{node_id}
-```
-
-Returns:
-- node metadata
-- formulas
-- relationships
-- lineage connections
-
----
-
-# Example API Response
-
-```json
-{
-  "labels": ["Attribute"],
-  "properties": {
-    "name": "OrderCount",
-    "formula": "COUNT(OrderID)",
-    "datatype": "decimal",
-    "is_calculated": true
-  },
-  "connections": [
-    {
-      "relationship": "DERIVED_FROM",
-      "connected_node": "OrderID"
-    }
-  ]
-}
+```powershell
+pytest --cov=lineage_platform
 ```
 
 ---
 
-# Enterprise Test Scenario
+## Generate HTML Coverage Report
 
-Recommended test file:
-
-```text
-99_enterprise_lineage_test.qvs
+```powershell
+pytest --cov=lineage_platform --cov-report=html
 ```
 
-This validates:
-- SQL lineage
-- joins
-- aggregations
-- synthetic fields
-- multi-hop lineage
-- metadata APIs
+Open:
+
+```text
+htmlcov/index.html
+```
+
+---
+
+# Current Test Coverage
+
+```text
+66%+
+```
+
+Coverage includes:
+
+- parser validation
+- integration tests
+- SQL parser tests
+- graph writer tests
+- API tests
+- synthetic lineage tests
+
+---
+
+# CI/CD
+
+GitHub Actions automatically runs:
+
+- pytest
+- parser validation
+- integration tests
+
+on every push and pull request.
+
+---
+
+# Docker Support
+
+## Build Container
+
+```powershell
+docker build -t metadata-lineage-engine .
+```
+
+---
+
+## Run Container
+
+```powershell
+docker run -p 8000:8000 metadata-lineage-engine
+```
 
 ---
 
@@ -396,56 +424,46 @@ This validates:
 | Neo4j Graph | ✅ |
 | Metadata APIs | ✅ |
 | Attribute Lineage | ✅ |
+| Automated Testing | ✅ |
+| CI/CD | ✅ |
 
 ---
 
 # Known Limitations
 
-## Current Parser Type
+Current parser architecture uses:
 
-Current parser uses:
-- regex
+- regex parsing
 - line-based parsing
 
-NOT:
+instead of:
+
 - ANTLR grammar parsing
+- full AST generation
 
----
-
-## Unsupported Complex Qlik Features
-
-Some advanced enterprise patterns may still require:
-- grammar-based parsing
-- AST generation
-- semantic analysis
-
-Examples:
-- nested subroutines
-- macro execution
-- dynamic variable expansion
-- recursive includes
+Advanced enterprise Qlik features may require:
+- semantic parsing
+- recursive include resolution
+- macro execution support
 
 ---
 
 # Future Enhancements
-
-## Planned Features
 
 - Tableau lineage parsing
 - Ab Initio lineage parsing
 - Teradata BTEQ parsing
 - Impact analysis APIs
 - Search APIs
-- Full lineage traversal APIs
-- Graph visualization APIs
-- Data quality metadata
-- Business glossary integration
+- Graph traversal APIs
 - Deterministic IDs
 - ANTLR-based parser engine
+- Data quality metadata
+- Business glossary integration
 
 ---
 
-# Recommended Neo4j Visualization Query
+# Recommended Neo4j Visualization
 
 ```cypher
 MATCH path = (n)-[*1..4]-(m)
@@ -455,32 +473,6 @@ LIMIT 200
 
 ---
 
-# Recommended Neo4j Styling
-
-Set captions:
-- `Attribute` → `name`
-- `QlikTable` → `name`
-
-Set colors:
-- Attribute → blue
-- QlikTable → green
-- Table → orange
-
----
-
-# Technology Stack
-
-| Component | Technology |
-|---|---|
-| API | FastAPI |
-| Graph DB | Neo4j |
-| SQL Parsing | sqlglot |
-| Language | Python |
-| Visualization | Neo4j Browser |
-| Metadata Storage | Graph Model |
-
----
-
 # License
 
-Internal Enterprise Research / Educational Use
+Educational / Research / Portfolio Use
