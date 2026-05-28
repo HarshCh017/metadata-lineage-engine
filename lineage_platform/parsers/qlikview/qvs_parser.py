@@ -122,6 +122,130 @@ class QVSParser:
 
             load = self.parse_load_block(block)
 
+import re
+from pathlib import Path
+from typing import List, Optional
+
+from lineage_platform.models.qlik_models import QVSLoad, QlikViewApp, SourceType, QVSSubroutine
+
+from lineage_platform.parsers.qlikview.field_parser import FieldParser
+
+from lineage_platform.parsers.qlikview.join_parser import JoinParser
+
+from lineage_platform.parsers.qlikview.synthetic_field_parser import SyntheticFieldParser
+
+from lineage_platform.parsers.qlikview.connection_parser import ConnectionParser
+
+from lineage_platform.parsers.qlikview.comment_cleaner import CommentCleaner
+from lineage_platform.parsers.qlikview.variable_parser import VariableParser
+from lineage_platform.parsers.qlikview.include_resolver import IncludeResolver
+
+from lineage_platform.parsers.qlikview.sql_parser import SQLParser
+
+
+class QVSParser:
+    """
+    Enterprise-safe QlikView parser.
+    """
+
+    def __init__(self):
+
+        self.field_parser = FieldParser()
+        self.join_parser = JoinParser()
+        self.synthetic_parser = SyntheticFieldParser()
+        self.connection_parser = ConnectionParser()
+
+    # =====================================================
+    # MAIN PARSE METHOD
+    # =====================================================
+
+    def parse(self, file_path: str) -> QlikViewApp:
+
+        path = Path(file_path)
+
+        import charset_normalizer
+        try:
+            matches = charset_normalizer.from_path(path)
+            best_match = matches.best()
+            if best_match:
+                content = str(best_match)
+            else:
+                with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                    content = f.read()
+        except Exception:
+            with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                content = f.read()
+
+        # -------------------------------------------------
+        # Resolve includes
+        # -------------------------------------------------
+
+        content = IncludeResolver.resolve_includes(content, path)
+
+        # -------------------------------------------------
+        # Clean comments
+        # -------------------------------------------------
+
+        content = CommentCleaner.clean_comments(content)
+        
+        # -------------------------------------------------
+        # Parse DROP TABLE
+        # -------------------------------------------------
+        
+        dropped_tables = []
+        for match in re.finditer(r"DROP\s+TABLE\s+([A-Za-z0-9_]+)", content, re.IGNORECASE):
+            dropped_tables.append(match.group(1).strip())
+
+        # -------------------------------------------------
+        # Extract subroutines
+        # -------------------------------------------------
+
+        subroutines = []
+        def replace_sub(match):
+            name = match.group(1).strip()
+            body = match.group(2).strip()
+            subroutines.append(QVSSubroutine(name=name, body=body))
+            return ""
+            
+        content = re.sub(r"^\s*SUB\s+([A-Za-z0-9_]+)(.*?)\bEND\s+SUB\b", replace_sub, content, flags=re.IGNORECASE | re.DOTALL | re.MULTILINE)
+
+        # -------------------------------------------------
+        # Extract variables and expand macros
+        # -------------------------------------------------
+
+        variables = VariableParser.extract_variables(content)
+        content = VariableParser.expand_macros(content, variables)
+
+        # -------------------------------------------------
+        # Create app
+        # -------------------------------------------------
+
+        app = QlikViewApp(app_name=path.stem)
+        app.subroutines = subroutines
+        app.dropped_tables = dropped_tables
+
+        # -------------------------------------------------
+        # Parse connections
+        # -------------------------------------------------
+
+        app.connections = self.connection_parser.extract_connections(content)
+
+        # -------------------------------------------------
+        # Extract LOAD blocks
+        # -------------------------------------------------
+
+        load_blocks = self.extract_load_blocks(content)
+
+        # -------------------------------------------------
+        # Parse LOAD blocks
+        # -------------------------------------------------
+
+        last_table_name = None
+
+        for block in load_blocks:
+
+            load = self.parse_load_block(block, app=app)
+
             if load:
 
                 app.loads.append(load)
@@ -258,7 +382,7 @@ class QVSParser:
     # PARSE LOAD BLOCK
     # =====================================================
 
-    def parse_load_block(self, block: str) -> Optional[QVSLoad]:
+    def parse_load_block(self, block: str, app: Optional[QlikViewApp] = None) -> Optional[QVSLoad]:
         """
         Parse a single LOAD block.
         """
@@ -296,6 +420,14 @@ class QVSParser:
         concatenates_to = None
 
         # -------------------------------------------------
+        # MAPPING LOAD
+        # -------------------------------------------------
+
+        is_mapping_load = False
+        if re.search(r"MAPPING\s+LOAD", block, flags=re.IGNORECASE):
+            is_mapping_load = True
+
+        # -------------------------------------------------
         # CONCATENATE
         # -------------------------------------------------
 
@@ -308,6 +440,8 @@ class QVSParser:
         # -------------------------------------------------
 
         sql_match = re.search(r"(SELECT.*?FROM.*?;)", block, flags=(re.IGNORECASE | re.DOTALL))
+        sql_columns = {}
+        lineage_partial = False
 
         if sql_match:
 
@@ -315,7 +449,20 @@ class QVSParser:
 
             sql_query = sql_match.group(1)
 
-            sql_tables = SQLParser.extract_sql_tables(sql_query)
+            dialect = None
+            if app and app.connections:
+                last_conn = app.connections[-1]
+                conn_str = (last_conn.server + " " + last_conn.connection_string).lower()
+                if "oracle" in conn_str:
+                    dialect = "oracle"
+                elif "teradata" in conn_str:
+                    dialect = "teradata"
+                elif "postgres" in conn_str:
+                    dialect = "postgres"
+                elif "mysql" in conn_str:
+                    dialect = "mysql"
+
+            sql_tables, sql_columns, lineage_partial = SQLParser.extract_sql_tables(sql_query, dialect=dialect)
 
             if sql_tables:
 
@@ -359,5 +506,8 @@ class QVSParser:
             source_type=source_type,
             source_table=source_table,
             sql_query=sql_query,
+            sql_columns=sql_columns,
             concatenates_to=concatenates_to,
+            is_mapping_load=is_mapping_load,
+            lineage_partial=lineage_partial,
         )

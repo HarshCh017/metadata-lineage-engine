@@ -123,6 +123,8 @@ class SQLParser:
     def extract_sql_tables(sql_query: str, dialect: str = None):
 
         tables = []
+        columns = {}
+        lineage_partial = False
 
         try:
 
@@ -158,10 +160,32 @@ class SQLParser:
 
                 tables.append(table_name)
 
+            # ------------------------------------------
+            # Extract column lineage
+            # ------------------------------------------
+            for select in parsed.find_all(exp.Select):
+                for projection in select.expressions:
+                    if isinstance(projection, exp.Alias):
+                        alias_name = projection.alias
+                        # Try to get root column
+                        if isinstance(projection.this, exp.Column):
+                            columns[alias_name] = projection.this.name
+                    elif isinstance(projection, exp.Column):
+                        columns[projection.name] = projection.name
+
+            # ------------------------------------------
+            # Detect unresolved variables (Dynamic SQL)
+            # ------------------------------------------
+            if "$(" in sql_query:
+                lineage_partial = True
+
         except Exception as e:
 
             logger.error("sql_parse_failed", error=str(e), sql_query=sql_query[:100])
             SQL_PARSE_FAILURES.inc()
+            import os
+            if os.getenv("STRICT_PARSING", "false").lower() == "true":
+                raise
 
         # ------------------------------------------------
         # Remove duplicates while preserving order
@@ -179,4 +203,4 @@ class SQLParser:
 
                 seen.add(table)
 
-        return unique_tables
+        return unique_tables, columns, lineage_partial

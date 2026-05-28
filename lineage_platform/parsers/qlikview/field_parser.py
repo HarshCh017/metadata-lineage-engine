@@ -197,9 +197,12 @@ class FieldParser:
             else:
 
                 # --------------------------------------------------
-                # Keep simple field
+                # ApplyMap extraction
                 # --------------------------------------------------
-
-                cleaned_fields.append(field.strip())
+                apply_map_match = re.search(r"ApplyMap\s*\(\s*['\"][^'\"]+['\"]\s*,\s*([A-Za-z0-9_]+)", field, flags=re.IGNORECASE)
+                if apply_map_match:
+                    cleaned_fields.append(apply_map_match.group(1))
+                else:
+                    cleaned_fields.append(field.strip())
 
         return cleaned_fields

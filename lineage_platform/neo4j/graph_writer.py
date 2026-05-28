@@ -128,6 +128,8 @@ class GraphWriter:
                     SET t.id = coalesce(t.id, $id),
                         t.layer = 'transform',
                         t.source_system = 'QlikView',
+                        t.is_mapping_load = $is_mapping_load,
+                        t.lineage_partial = $lineage_partial,
                         t.created_at = coalesce(
                             t.created_at,
                             $created_at
@@ -135,6 +137,8 @@ class GraphWriter:
                     """,
                     table_name=load.table_name,
                     id=self._generate_id(f"qlik_table::{app.app_name}.{load.table_name}"),
+                    is_mapping_load=load.is_mapping_load,
+                    lineage_partial=load.lineage_partial,
                     created_at=str(datetime.utcnow()),
                 )
 
@@ -263,6 +267,32 @@ class GraphWriter:
                         table_name=load.table_name,
                         field_name=field,
                     )
+                    
+                    if field == "*" and load.source_table:
+                        session.run(
+                            """
+                            MATCH (src:QlikTable {name: $source_table})-[:HAS_FIELD]->(src_attr:Attribute)
+                            MATCH (t:QlikTable {name: $table_name})
+                            MERGE (t)-[:HAS_FIELD]->(src_attr)
+                            """,
+                            source_table=load.source_table,
+                            table_name=load.table_name
+                        )
+                    
+                    if field in load.sql_columns and load.source_table:
+                        physical_col = load.sql_columns[field]
+                        session.run(
+                            """
+                            MATCH (a:Attribute {name: $field_name})
+                            MERGE (pc:TableColumn {name: $physical_col, table: $source_table})
+                            SET pc.id = coalesce(pc.id, $pc_id)
+                            MERGE (a)-[:DERIVES_FROM]->(pc)
+                            """,
+                            field_name=field,
+                            physical_col=physical_col,
+                            source_table=load.source_table,
+                            pc_id=self._generate_id(f"tablecolumn::{load.source_table}.{physical_col}")
+                        )
 
             # =================================================
             # Synthetic lineage
