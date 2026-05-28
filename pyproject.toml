@@ -4,5 +4,16 @@ version = "2.1.0"
 description = "Enterprise Data Lineage Engine"
 authors = ["Harsh Chauhan <harsh.chauhan2@ibm.com>"]
 
+[tool.poetry.dependencies]
+python = "^3.9"
+fastapi = "*"
+uvicorn = "*"
+pydantic = "*"
+neo4j = "*"
+sqlglot = "*"
+prometheus-client = "*"
+structlog = "*"
+charset-normalizer = "*"
+
 [tool.black]
 line-length = 120

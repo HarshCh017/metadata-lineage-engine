@@ -39,9 +39,18 @@ class QVSParser:
 
         path = Path(file_path)
 
-        with open(path, "r", encoding="utf-8", errors="ignore") as f:
-
-            content = f.read()
+        import charset_normalizer
+        try:
+            matches = charset_normalizer.from_path(path)
+            best_match = matches.best()
+            if best_match:
+                content = str(best_match)
+            else:
+                with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                    content = f.read()
+        except Exception:
+            with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                content = f.read()
 
         # -------------------------------------------------
         # Resolve includes
@@ -54,6 +63,14 @@ class QVSParser:
         # -------------------------------------------------
 
         content = CommentCleaner.clean_comments(content)
+        
+        # -------------------------------------------------
+        # Parse DROP TABLE
+        # -------------------------------------------------
+        
+        dropped_tables = []
+        for match in re.finditer(r"DROP\s+TABLE\s+([A-Za-z0-9_]+)", content, re.IGNORECASE):
+            dropped_tables.append(match.group(1).strip())
 
         # -------------------------------------------------
         # Extract subroutines
@@ -81,6 +98,7 @@ class QVSParser:
 
         app = QlikViewApp(app_name=path.stem)
         app.subroutines = subroutines
+        app.dropped_tables = dropped_tables
 
         # -------------------------------------------------
         # Parse connections

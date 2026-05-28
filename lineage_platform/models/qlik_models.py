@@ -136,3 +136,5 @@ class QlikViewApp:
     sheets: List[QVSSheet] = field(default_factory=list)
 
     subroutines: List[QVSSubroutine] = field(default_factory=list)
+
+    dropped_tables: List[str] = field(default_factory=list)

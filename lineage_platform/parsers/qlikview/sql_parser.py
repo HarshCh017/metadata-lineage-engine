@@ -1,5 +1,10 @@
 import sqlglot
 from sqlglot import exp
+from prometheus_client import Counter
+import structlog
+
+logger = structlog.get_logger()
+SQL_PARSE_FAILURES = Counter('qlikview_sql_parse_failures_total', 'Total SQL parse failures')
 
 
 class SQLParser:
@@ -115,7 +120,7 @@ class SQLParser:
     # =====================================================
 
     @staticmethod
-    def extract_sql_tables(sql_query: str):
+    def extract_sql_tables(sql_query: str, dialect: str = None):
 
         tables = []
 
@@ -134,7 +139,7 @@ class SQLParser:
             # Parse SQL
             # ------------------------------------------
 
-            parsed = sqlglot.parse_one(sql_query)
+            parsed = sqlglot.parse_one(sql_query, read=dialect)
 
             # ------------------------------------------
             # Extract table references
@@ -155,7 +160,8 @@ class SQLParser:
 
         except Exception as e:
 
-            print(f"SQL parsing failed: {e}")
+            logger.error("sql_parse_failed", error=str(e), sql_query=sql_query[:100])
+            SQL_PARSE_FAILURES.inc()
 
         # ------------------------------------------------
         # Remove duplicates while preserving order
