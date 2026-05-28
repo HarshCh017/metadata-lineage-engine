@@ -19,6 +19,31 @@ class SourceType(str, Enum):
 
 
 # =========================================================
+# QVW DASHBOARD MODELS
+# =========================================================
+
+@dataclass
+class QVSChart:
+    chart_id: str
+    title: str
+    fields: List[str] = field(default_factory=list)
+
+@dataclass
+class QVSSheet:
+    sheet_id: str
+    title: str
+    charts: List[QVSChart] = field(default_factory=list)
+
+# =========================================================
+# QVS SUBROUTINE MODEL
+# =========================================================
+
+@dataclass
+class QVSSubroutine:
+    name: str
+    body: str
+
+# =========================================================
 # QVS FIELD MODEL
 # =========================================================
 
@@ -54,6 +79,8 @@ class QVSLoad:
     source_table: Optional[str] = None
 
     sql_query: Optional[str] = None
+
+    concatenates_to: Optional[str] = None
 
 
 # =========================================================
@@ -105,3 +132,7 @@ class QlikViewApp:
     fields: List[QVSField] = field(default_factory=list)
 
     connections: List[QVSConnection] = field(default_factory=list)
+
+    sheets: List[QVSSheet] = field(default_factory=list)
+
+    subroutines: List[QVSSubroutine] = field(default_factory=list)

@@ -13,9 +13,9 @@ class JoinParser:
     - INNER JOIN (Orders) LOAD ...
     """
 
-    EXPLICIT_JOIN_PATTERN = re.compile(r"(LEFT|INNER|RIGHT|FULL)?\s+JOIN\s*\((.*?)\)", re.IGNORECASE | re.DOTALL)
+    EXPLICIT_JOIN_PATTERN = re.compile(r"(LEFT|INNER|RIGHT|FULL)?\s+(JOIN|KEEP)\s*\((.*?)\)", re.IGNORECASE | re.DOTALL)
 
-    IMPLICIT_JOIN_PATTERN = re.compile(r"(LEFT|INNER|RIGHT|FULL)?\s+JOIN\s+LOAD", re.IGNORECASE | re.DOTALL)
+    IMPLICIT_JOIN_PATTERN = re.compile(r"(LEFT|INNER|RIGHT|FULL)?\s+(JOIN|KEEP)\s+LOAD", re.IGNORECASE | re.DOTALL)
 
     RESIDENT_PATTERN = re.compile(r"RESIDENT\s+([a-zA-Z_]\w*)", re.IGNORECASE)
 
@@ -34,9 +34,11 @@ class JoinParser:
 
         if explicit_match:
 
-            join_type = (explicit_match.group(1) or "INNER").upper()
+            join_mod = (explicit_match.group(1) or "INNER").upper()
+            join_action = explicit_match.group(2).upper()
+            join_type = f"{join_mod} {join_action}"
 
-            target_table = explicit_match.group(2).strip()
+            target_table = explicit_match.group(3).strip()
 
             resident_match = JoinParser.RESIDENT_PATTERN.search(load_block)
 
@@ -59,7 +61,9 @@ class JoinParser:
 
         if implicit_match and previous_table:
 
-            join_type = (implicit_match.group(1) or "INNER").upper()
+            join_mod = (implicit_match.group(1) or "INNER").upper()
+            join_action = implicit_match.group(2).upper()
+            join_type = f"{join_mod} {join_action}"
 
             resident_match = JoinParser.RESIDENT_PATTERN.search(load_block)
 

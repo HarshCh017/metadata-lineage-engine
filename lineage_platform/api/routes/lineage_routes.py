@@ -1,14 +1,17 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from pathlib import Path
+from typing import Optional
 
 from lineage_platform.parsers.qlikview.qvs_parser import QVSParser
+from lineage_platform.parsers.qlikview.qvw_parser import QVWParser
 from lineage_platform.neo4j.graph_writer import GraphWriter
 
 router = APIRouter()
 
 class ParseRequest(BaseModel):
     script_path: str
+    xml_metadata_path: Optional[str] = None
     overwrite: bool = False
 
 # =========================================================
@@ -45,6 +48,11 @@ def parse_script(request: ParseRequest):
     try:
         parser = QVSParser()
         app = parser.parse(str(file_path))
+        
+        if request.xml_metadata_path:
+            qvw_parser = QVWParser()
+            app.sheets = qvw_parser.parse_metadata(request.xml_metadata_path)
+            
         
         writer = GraphWriter()
         writer.write_app(app)

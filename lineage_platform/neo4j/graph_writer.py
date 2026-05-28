@@ -53,8 +53,65 @@ class GraphWriter:
             )
 
             # =================================================
-            # Process LOADS
+            # Process Subroutines
             # =================================================
+            for sub in app.subroutines:
+                session.run(
+                    """
+                    MERGE (s:Subroutine {name: $sub_name})
+                    SET s.id = coalesce(s.id, $id)
+                    WITH s
+                    MATCH (q:QlikScript {name: $app_name})
+                    MERGE (q)-[:DEFINES_SUBROUTINE]->(s)
+                    """,
+                    sub_name=sub.name,
+                    id=self._generate_id(f"subroutine::{app.app_name}.{sub.name}"),
+                    app_name=app.app_name
+                )
+
+            # =================================================
+            # Process Dashboards (XML)
+            # =================================================
+            for sheet in app.sheets:
+                session.run(
+                    """
+                    MERGE (s:QlikSheet {name: $sheet_title})
+                    SET s.id = coalesce(s.id, $id), s.sheet_id = $sheet_id
+                    WITH s
+                    MATCH (q:QlikScript {name: $app_name})
+                    MERGE (q)-[:CONTAINS_SHEET]->(s)
+                    """,
+                    sheet_title=sheet.title,
+                    sheet_id=sheet.sheet_id,
+                    id=self._generate_id(f"qliksheet::{app.app_name}.{sheet.sheet_id}"),
+                    app_name=app.app_name
+                )
+                
+                for chart in sheet.charts:
+                    session.run(
+                        """
+                        MERGE (c:QlikChart {name: $chart_title})
+                        SET c.id = coalesce(c.id, $id), c.chart_id = $chart_id
+                        WITH c
+                        MATCH (s:QlikSheet {sheet_id: $sheet_id})
+                        MERGE (s)-[:DISPLAYS_CHART]->(c)
+                        """,
+                        chart_title=chart.title,
+                        chart_id=chart.chart_id,
+                        id=self._generate_id(f"qlikchart::{app.app_name}.{chart.chart_id}"),
+                        sheet_id=sheet.sheet_id
+                    )
+                    
+                    for field in chart.fields:
+                        session.run(
+                            """
+                            MATCH (c:QlikChart {chart_id: $chart_id})
+                            MERGE (a:Attribute {name: $field_name})
+                            MERGE (c)-[:USES_FIELD]->(a)
+                            """,
+                            chart_id=chart.chart_id,
+                            field_name=field
+                        )
 
             for load in app.loads:
 
@@ -100,6 +157,21 @@ class GraphWriter:
                     app_name=app.app_name,
                     table_name=load.table_name,
                 )
+
+                # ---------------------------------------------
+                # CONCATENATE
+                # ---------------------------------------------
+
+                if load.concatenates_to:
+                    session.run(
+                        """
+                        MATCH (t:QlikTable {name: $table_name})
+                        MATCH (target:QlikTable {name: $target_table})
+                        MERGE (t)-[:CONCATENATES_INTO]->(target)
+                        """,
+                        table_name=load.table_name,
+                        target_table=load.concatenates_to,
+                    )
 
                 # ---------------------------------------------
                 # Source lineage

@@ -2,7 +2,7 @@ import re
 from pathlib import Path
 from typing import List, Optional
 
-from lineage_platform.models.qlik_models import QVSLoad, QlikViewApp, SourceType
+from lineage_platform.models.qlik_models import QVSLoad, QlikViewApp, SourceType, QVSSubroutine
 
 from lineage_platform.parsers.qlikview.field_parser import FieldParser
 
@@ -56,6 +56,19 @@ class QVSParser:
         content = CommentCleaner.clean_comments(content)
 
         # -------------------------------------------------
+        # Extract subroutines
+        # -------------------------------------------------
+
+        subroutines = []
+        def replace_sub(match):
+            name = match.group(1).strip()
+            body = match.group(2).strip()
+            subroutines.append(QVSSubroutine(name=name, body=body))
+            return ""
+            
+        content = re.sub(r"^\s*SUB\s+([A-Za-z0-9_]+)(.*?)\bEND\s+SUB\b", replace_sub, content, flags=re.IGNORECASE | re.DOTALL | re.MULTILINE)
+
+        # -------------------------------------------------
         # Extract variables and expand macros
         # -------------------------------------------------
 
@@ -67,6 +80,7 @@ class QVSParser:
         # -------------------------------------------------
 
         app = QlikViewApp(app_name=path.stem)
+        app.subroutines = subroutines
 
         # -------------------------------------------------
         # Parse connections
@@ -261,6 +275,16 @@ class QVSParser:
 
         sql_query = None
 
+        concatenates_to = None
+
+        # -------------------------------------------------
+        # CONCATENATE
+        # -------------------------------------------------
+
+        concat_match = re.search(r"CONCATENATE\s*\(\s*([A-Za-z0-9_]+)\s*\)", block, flags=re.IGNORECASE)
+        if concat_match:
+            concatenates_to = concat_match.group(1)
+
         # -------------------------------------------------
         # SQL SOURCE
         # -------------------------------------------------
@@ -304,8 +328,12 @@ class QVSParser:
             source_table = from_match.group(1)
 
         # -------------------------------------------------
-        # Return model
+        # Build Load Object
         # -------------------------------------------------
+
+        if source_type == SourceType.UNKNOWN and not fields:
+
+            return None
 
         return QVSLoad(
             table_name=table_name,
@@ -313,4 +341,5 @@ class QVSParser:
             source_type=source_type,
             source_table=source_table,
             sql_query=sql_query,
+            concatenates_to=concatenates_to,
         )
