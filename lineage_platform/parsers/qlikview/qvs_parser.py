@@ -335,6 +335,10 @@ class QVSParser:
         # -------------------------------------------------
 
         sql_match = re.search(r"(SELECT.*?FROM.*?;)", block, flags=(re.IGNORECASE | re.DOTALL))
+        sql_match = re.search(r"SQL\s+SELECT(.*)", block, flags=re.IGNORECASE | re.DOTALL)
+        resident_match = re.search(r"RESIDENT\s+([A-Za-z0-9_]+)", block, flags=re.IGNORECASE)
+        from_match = re.search(r"FROM\s+[\[\'](.*?)[\]\']", block, flags=re.IGNORECASE)
+
         sql_columns = {}
         lineage_partial = False
 
@@ -367,8 +371,6 @@ class QVSParser:
         # RESIDENT SOURCE
         # -------------------------------------------------
 
-        resident_match = re.search(r"RESIDENT\s+([A-Za-z0-9_]+)", block, flags=re.IGNORECASE)
-
         elif resident_match:
 
             source_type = SourceType.RESIDENT
@@ -378,8 +380,6 @@ class QVSParser:
         # -------------------------------------------------
         # FILE SOURCE
         # -------------------------------------------------
-
-        from_match = re.search(r'FROM\s+[\'"](.+?)[\'"]', block, flags=re.IGNORECASE)
 
         elif from_match:
 

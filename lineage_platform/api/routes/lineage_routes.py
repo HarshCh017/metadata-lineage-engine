@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from pathlib import Path
 from typing import Optional, List
 import structlog
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Counter
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Counter, REGISTRY
 
 logger = structlog.get_logger()
 
@@ -14,10 +14,17 @@ from lineage_platform.models.adapters import QlikToIntermediateAdapter
 from lineage_platform.neo4j.batch_writer import BatchGraphWriter
 
 # Prometheus counters (§12)
-FILES_PARSED = Counter("qlikview_files_parsed_total", "Total QlikView files parsed")
-PARSE_FAILURES = Counter("qlikview_parse_failures_total", "Total parse failures")
-INCLUDES_RESOLVED = Counter("qlikview_includes_resolved_total", "Total $(Include=...) directives resolved")
-MACRO_EXPANSIONS = Counter("qlikview_macro_expansions_total", "Total $(var) macro expansions performed")
+try:
+    FILES_PARSED = Counter("qlikview_files_parsed_total", "Total QlikView files parsed")
+    PARSE_FAILURES = Counter("qlikview_parse_failures_total", "Total parse failures")
+    INCLUDES_RESOLVED = Counter("qlikview_includes_resolved_total", "Total $(Include=...) directives resolved")
+    MACRO_EXPANSIONS = Counter("qlikview_macro_expansions_total", "Total $(var) macro expansions performed")
+except ValueError:
+    # Handle duplicate registration during pytest re-imports
+    FILES_PARSED = REGISTRY._names_to_collectors["qlikview_files_parsed_total"]
+    PARSE_FAILURES = REGISTRY._names_to_collectors["qlikview_parse_failures_total"]
+    INCLUDES_RESOLVED = REGISTRY._names_to_collectors["qlikview_includes_resolved_total"]
+    MACRO_EXPANSIONS = REGISTRY._names_to_collectors["qlikview_macro_expansions_total"]
 
 router = APIRouter()
 
