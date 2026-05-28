@@ -1,5 +1,8 @@
 import re
-from typing import Dict
+from typing import Dict, List
+from prometheus_client import Counter
+
+MACRO_EXPANSIONS = Counter("qlikview_macro_expansions_total", "Total $(var) macro expansions performed")
 
 class VariableParser:
     """
@@ -22,10 +25,18 @@ class VariableParser:
         Expands $(varName) macros in the script using the extracted variables.
         Resolves nested variables up to 3 levels deep.
         """
+        def replace_macro(match):
+            var_name = match.group(1).strip()
+            # We must handle case-insensitive lookup since dictionary keys might not exactly match
+            for k, v in variables.items():
+                if k.lower() == var_name.lower():
+                    MACRO_EXPANSIONS.inc()
+                    return v
+            return match.group(0)
+
         for _ in range(3):
             original = content
-            for name, value in variables.items():
-                content = re.sub(r"\$\(\s*" + re.escape(name) + r"\s*\)", value, content, flags=re.IGNORECASE)
+            content = re.sub(r"\$\(\s*([A-Za-z0-9_]+)\s*\)", replace_macro, content)
             if content == original:
                 break
         return content

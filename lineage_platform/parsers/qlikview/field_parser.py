@@ -173,8 +173,13 @@ class FieldParser:
 
             lower_field = field.lower()
 
-            # Skip invalid parser artifacts
+            # Skip invalid parser artifacts (but always keep bare star)
             if lower_field in invalid_fields:
+                continue
+
+            # Always emit bare star for star-load inheritance
+            if field == "*":
+                cleaned_fields.append("*")
                 continue
 
             # Skip SQL FROM clauses accidentally captured

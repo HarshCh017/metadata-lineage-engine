@@ -25,10 +25,13 @@ class QVWParser:
             
         sheets = []
         
-        # Generic traversal assuming <Sheet> -> <SheetObject> -> <Definition>
-        sheet_nodes = root.findall(".//Sheet")
+        # XML Schema per plan:
+        # <Documents>/<Document>/<Sheets>/<Sheet>/<Objects>/<TextObject|ChartObject|TableObject>/<Dimensions|Expressions>
+        
+        sheet_nodes = root.findall("./Document/Sheets/Sheet")
         if not sheet_nodes:
-            sheet_nodes = root.findall(".//sheet")
+            # Fallback for simpler XMLs if needed
+            sheet_nodes = root.findall(".//Sheet")
             
         for sheet_node in sheet_nodes:
             sheet_id = sheet_node.get("Id", sheet_node.get("id", "UNKNOWN_SHEET"))
@@ -40,9 +43,14 @@ class QVWParser:
             
             sheet = QVSSheet(sheet_id=sheet_id, title=sheet_title, charts=[])
             
-            chart_nodes = sheet_node.findall(".//SheetObject")
-            if not chart_nodes:
-                chart_nodes = sheet_node.findall(".//sheetobject")
+            # Find all objects within this sheet
+            objects_node = sheet_node.find("Objects")
+            if objects_node is not None:
+                # Get all children of Objects (TextObject, ChartObject, TableObject, etc.)
+                chart_nodes = list(objects_node)
+            else:
+                # Fallback
+                chart_nodes = sheet_node.findall(".//SheetObject")
                 
             for chart_node in chart_nodes:
                 chart_id = chart_node.get("Id", chart_node.get("id", "UNKNOWN_CHART"))
@@ -54,19 +62,34 @@ class QVWParser:
                 
                 chart = QVSChart(chart_id=chart_id, title=chart_title, fields=[])
                 
-                # Extract fields from definitions
-                def_nodes = chart_node.findall(".//Definition")
-                if not def_nodes:
-                    def_nodes = chart_node.findall(".//definition")
+                # Extract fields from <Dimensions> and <Expressions>
+                fields_to_parse = []
+                
+                dimensions = chart_node.find("Dimensions")
+                if dimensions is not None:
+                    for dim in dimensions:
+                        if dim.text:
+                            fields_to_parse.append(dim.text)
+                            
+                expressions = chart_node.find("Expressions")
+                if expressions is not None:
+                    for expr in expressions:
+                        if expr.text:
+                            fields_to_parse.append(expr.text)
+                            
+                # Fallback if no Dimensions/Expressions found
+                if not fields_to_parse:
+                    def_nodes = chart_node.findall(".//Definition")
+                    for def_node in def_nodes:
+                        if def_node.text:
+                            fields_to_parse.append(def_node.text)
                     
-                for def_node in def_nodes:
-                    if def_node.text:
-                        # Extract basic field tokens from expressions (e.g. sum(Sales) -> Sales)
-                        tokens = re.findall(r"\b[A-Za-z_][A-Za-z0-9_]*\b", def_node.text)
-                        for t in tokens:
-                            if t.upper() not in {"SUM", "AVG", "MIN", "MAX", "COUNT", "IF", "NULL", "AS", "AND", "OR"}:
-                                if t not in chart.fields:
-                                    chart.fields.append(t)
+                for field_text in fields_to_parse:
+                    tokens = re.findall(r"\b[A-Za-z_][A-Za-z0-9_]*\b", field_text)
+                    for t in tokens:
+                        if t.upper() not in {"SUM", "AVG", "MIN", "MAX", "COUNT", "IF", "NULL", "AS", "AND", "OR"}:
+                            if t not in chart.fields:
+                                chart.fields.append(t)
                                     
                 sheet.charts.append(chart)
             sheets.append(sheet)

@@ -65,25 +65,42 @@ class QVSParser:
         content = CommentCleaner.clean_comments(content)
         
         # -------------------------------------------------
-        # Parse DROP TABLE
+        # Parse DROP TABLE and DROP FIELD
         # -------------------------------------------------
         
         dropped_tables = []
         for match in re.finditer(r"DROP\s+TABLE\s+([A-Za-z0-9_]+)", content, re.IGNORECASE):
             dropped_tables.append(match.group(1).strip())
 
+        dropped_fields = []
+        for match in re.finditer(r"DROP\s+FIELDS?\s+([A-Za-z0-9_,\s]+)", content, re.IGNORECASE):
+            for f in match.group(1).split(","):
+                dropped_fields.append(f.strip())
+
         # -------------------------------------------------
-        # Extract subroutines
+        # Extract subroutines (cache bodies for CALL inlining)
         # -------------------------------------------------
 
         subroutines = []
+        subroutine_bodies = {}
         def replace_sub(match):
             name = match.group(1).strip()
             body = match.group(2).strip()
             subroutines.append(QVSSubroutine(name=name, body=body))
+            subroutine_bodies[name.upper()] = body
             return ""
             
         content = re.sub(r"^\s*SUB\s+([A-Za-z0-9_]+)(.*?)\bEND\s+SUB\b", replace_sub, content, flags=re.IGNORECASE | re.DOTALL | re.MULTILINE)
+
+        # -------------------------------------------------
+        # Inline CALL sites
+        # -------------------------------------------------
+
+        def inline_call(match):
+            name = match.group(1).strip().upper()
+            return subroutine_bodies.get(name, "")
+
+        content = re.sub(r"\bCALL\s+([A-Za-z0-9_]+)\b", inline_call, content, flags=re.IGNORECASE)
 
         # -------------------------------------------------
         # Extract variables and expand macros
@@ -99,130 +116,8 @@ class QVSParser:
         app = QlikViewApp(app_name=path.stem)
         app.subroutines = subroutines
         app.dropped_tables = dropped_tables
-
-        # -------------------------------------------------
-        # Parse connections
-        # -------------------------------------------------
-
-        app.connections = self.connection_parser.extract_connections(content)
-
-        # -------------------------------------------------
-        # Extract LOAD blocks
-        # -------------------------------------------------
-
-        load_blocks = self.extract_load_blocks(content)
-
-        # -------------------------------------------------
-        # Parse LOAD blocks
-        # -------------------------------------------------
-
-        last_table_name = None
-
-        for block in load_blocks:
-
-            load = self.parse_load_block(block)
-
-import re
-from pathlib import Path
-from typing import List, Optional
-
-from lineage_platform.models.qlik_models import QVSLoad, QlikViewApp, SourceType, QVSSubroutine
-
-from lineage_platform.parsers.qlikview.field_parser import FieldParser
-
-from lineage_platform.parsers.qlikview.join_parser import JoinParser
-
-from lineage_platform.parsers.qlikview.synthetic_field_parser import SyntheticFieldParser
-
-from lineage_platform.parsers.qlikview.connection_parser import ConnectionParser
-
-from lineage_platform.parsers.qlikview.comment_cleaner import CommentCleaner
-from lineage_platform.parsers.qlikview.variable_parser import VariableParser
-from lineage_platform.parsers.qlikview.include_resolver import IncludeResolver
-
-from lineage_platform.parsers.qlikview.sql_parser import SQLParser
-
-
-class QVSParser:
-    """
-    Enterprise-safe QlikView parser.
-    """
-
-    def __init__(self):
-
-        self.field_parser = FieldParser()
-        self.join_parser = JoinParser()
-        self.synthetic_parser = SyntheticFieldParser()
-        self.connection_parser = ConnectionParser()
-
-    # =====================================================
-    # MAIN PARSE METHOD
-    # =====================================================
-
-    def parse(self, file_path: str) -> QlikViewApp:
-
-        path = Path(file_path)
-
-        import charset_normalizer
-        try:
-            matches = charset_normalizer.from_path(path)
-            best_match = matches.best()
-            if best_match:
-                content = str(best_match)
-            else:
-                with open(path, "r", encoding="utf-8", errors="ignore") as f:
-                    content = f.read()
-        except Exception:
-            with open(path, "r", encoding="utf-8", errors="ignore") as f:
-                content = f.read()
-
-        # -------------------------------------------------
-        # Resolve includes
-        # -------------------------------------------------
-
-        content = IncludeResolver.resolve_includes(content, path)
-
-        # -------------------------------------------------
-        # Clean comments
-        # -------------------------------------------------
-
-        content = CommentCleaner.clean_comments(content)
-        
-        # -------------------------------------------------
-        # Parse DROP TABLE
-        # -------------------------------------------------
-        
-        dropped_tables = []
-        for match in re.finditer(r"DROP\s+TABLE\s+([A-Za-z0-9_]+)", content, re.IGNORECASE):
-            dropped_tables.append(match.group(1).strip())
-
-        # -------------------------------------------------
-        # Extract subroutines
-        # -------------------------------------------------
-
-        subroutines = []
-        def replace_sub(match):
-            name = match.group(1).strip()
-            body = match.group(2).strip()
-            subroutines.append(QVSSubroutine(name=name, body=body))
-            return ""
-            
-        content = re.sub(r"^\s*SUB\s+([A-Za-z0-9_]+)(.*?)\bEND\s+SUB\b", replace_sub, content, flags=re.IGNORECASE | re.DOTALL | re.MULTILINE)
-
-        # -------------------------------------------------
-        # Extract variables and expand macros
-        # -------------------------------------------------
-
-        variables = VariableParser.extract_variables(content)
-        content = VariableParser.expand_macros(content, variables)
-
-        # -------------------------------------------------
-        # Create app
-        # -------------------------------------------------
-
-        app = QlikViewApp(app_name=path.stem)
-        app.subroutines = subroutines
-        app.dropped_tables = dropped_tables
+        app.dropped_fields = dropped_fields
+        app.variables = variables
 
         # -------------------------------------------------
         # Parse connections
@@ -452,7 +347,7 @@ class QVSParser:
             dialect = None
             if app and app.connections:
                 last_conn = app.connections[-1]
-                conn_str = (last_conn.server + " " + last_conn.connection_string).lower()
+                conn_str = (last_conn.connection_name + " " + last_conn.connection_string).lower()
                 if "oracle" in conn_str:
                     dialect = "oracle"
                 elif "teradata" in conn_str:
@@ -474,7 +369,7 @@ class QVSParser:
 
         resident_match = re.search(r"RESIDENT\s+([A-Za-z0-9_]+)", block, flags=re.IGNORECASE)
 
-        if resident_match:
+        elif resident_match:
 
             source_type = SourceType.RESIDENT
 
@@ -486,7 +381,7 @@ class QVSParser:
 
         from_match = re.search(r'FROM\s+[\'"](.+?)[\'"]', block, flags=re.IGNORECASE)
 
-        if from_match:
+        elif from_match:
 
             source_type = SourceType.FILE
 

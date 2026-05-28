@@ -1,6 +1,9 @@
 import re
 from pathlib import Path
 import os
+from prometheus_client import Counter
+
+INCLUDES_RESOLVED = Counter("qlikview_includes_resolved_total", "Total $(Include=...) directives resolved")
 
 class IncludeResolver:
     """
@@ -37,6 +40,7 @@ class IncludeResolver:
                 
             if target_path.exists():
                 included_content = target_path.read_text(encoding="utf-8", errors="ignore")
+                INCLUDES_RESOLVED.inc()
                 return IncludeResolver.resolve_includes(included_content, target_path, depth + 1)
             else:
                 print(f"WARNING: Included file not found: {target_path}")

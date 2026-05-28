@@ -120,6 +120,12 @@ class QVSConnection:
 
     database_type: Optional[str] = None
 
+    connection_class: Optional[str] = None
+
+    server: Optional[str] = None
+
+    database_name: Optional[str] = None
+
 
 # =========================================================
 # MAIN APPLICATION MODEL
@@ -146,3 +152,5 @@ class QlikViewApp:
     dropped_tables: List[str] = field(default_factory=list)
     
     dropped_fields: List[str] = field(default_factory=list)
+
+    variables: dict = field(default_factory=dict)

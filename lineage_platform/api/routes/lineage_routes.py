@@ -1,9 +1,10 @@
+import time
 from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel
 from pathlib import Path
 from typing import Optional, List
 import structlog
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Counter
 
 logger = structlog.get_logger()
 
@@ -11,25 +12,30 @@ from lineage_platform.parsers.qlikview.qvs_parser import QVSParser
 from lineage_platform.parsers.qlikview.qvw_parser import QVWParser
 from lineage_platform.neo4j.graph_writer import GraphWriter
 
+# Prometheus counters (§12)
+FILES_PARSED = Counter("qlikview_files_parsed_total", "Total QlikView files parsed")
+PARSE_FAILURES = Counter("qlikview_parse_failures_total", "Total parse failures")
+INCLUDES_RESOLVED = Counter("qlikview_includes_resolved_total", "Total $(Include=...) directives resolved")
+MACRO_EXPANSIONS = Counter("qlikview_macro_expansions_total", "Total $(var) macro expansions performed")
+
 router = APIRouter()
+
 
 class ParseRequest(BaseModel):
     script_path: str
     xml_metadata_path: Optional[str] = None
     overwrite: bool = False
 
+
 # =========================================================
-# Health Route
+# Version Route
 # =========================================================
 
-
-@router.get("/health")
-def health():
-    return {"status": "healthy"}
 
 @router.get("/version")
 def version():
     return {"version": "2.1.0"}
+
 
 @router.get("/metrics")
 def metrics():
@@ -46,9 +52,11 @@ def lineage_root():
 
     return {"message": "Lineage API active"}
 
+
 # =========================================================
-# Parse Script Endpoint
+# Parse Script Endpoint (§8 — enriched response)
 # =========================================================
+
 
 @router.post("/parse")
 def parse_script(request: ParseRequest):
@@ -57,29 +65,49 @@ def parse_script(request: ParseRequest):
     if not file_path.exists():
         logger.error("file_not_found", script_path=request.script_path)
         raise HTTPException(status_code=404, detail=f"File not found: {request.script_path}")
-    
+
+    start_time = time.time()
+    warnings = []
+
     try:
         parser = QVSParser()
         app = parser.parse(str(file_path))
-        
+
         if request.xml_metadata_path:
             qvw_parser = QVWParser()
             app.sheets = qvw_parser.parse_metadata(request.xml_metadata_path)
-            
-        
+
         writer = GraphWriter()
         writer.write_app(app)
-        
+        writer.close()
+
+        duration_ms = round((time.time() - start_time) * 1000, 2)
+        FILES_PARSED.inc()
+
         logger.info("parse_script_success", app_name=app.app_name, loads=len(app.loads))
         return {
             "status": "success",
             "app_name": app.app_name,
-            "loads_processed": len(app.loads),
-            "connections_processed": len(app.connections)
+            "qlik_tables": len(app.loads),
+            "physical_tables": len(set(l.source_table for l in app.loads if l.source_table)),
+            "attributes": sum(len(l.fields) for l in app.loads),
+            "joins": len(app.joins),
+            "concatenates": sum(1 for l in app.loads if l.concatenates_to),
+            "variables": len(app.variables),
+            "subroutines": len(app.subroutines),
+            "sheets": len(app.sheets),
+            "charts": sum(len(s.charts) for s in app.sheets),
+            "connections": len(app.connections),
+            "dropped_tables": len(app.dropped_tables),
+            "dropped_fields": len(app.dropped_fields),
+            "duration_ms": duration_ms,
+            "warnings": warnings,
         }
     except Exception as e:
+        PARSE_FAILURES.inc()
         logger.error("parse_script_failed", error=str(e), script_path=request.script_path)
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/parse/batch")
 def parse_batch(requests: List[ParseRequest]):

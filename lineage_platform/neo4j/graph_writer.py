@@ -1,15 +1,17 @@
 import os
-import hashlib
-from neo4j import GraphDatabase
-from datetime import datetime
+from datetime import datetime, UTC
 
+from neo4j import GraphDatabase
+
+from lineage_platform.core.hashing import generate_deterministic_id
 from lineage_platform.models.qlik_models import QlikViewApp, SourceType
 
 
 class GraphWriter:
     """
-    Enterprise Neo4j Graph Writer
-    Writes lineage metadata into Neo4j.
+    Enterprise Neo4j Graph Writer.
+    Writes lineage metadata into Neo4j with deterministic IDs
+    and plan-aligned schema labels.
     """
 
     def __init__(self):
@@ -19,7 +21,22 @@ class GraphWriter:
         self.driver = GraphDatabase.driver(uri, auth=(user, password))
 
     def _generate_id(self, canonical_str: str) -> str:
-        return hashlib.sha256(canonical_str.encode()).hexdigest()[:16]
+        return generate_deterministic_id(canonical_str)
+
+    def _build_fqn(self, load, app):
+        """
+        Build a real fully_qualified_name from connection metadata.
+        Falls back to UNKNOWN.UNKNOWN.<table> only when unresolvable.
+        """
+        database = "UNKNOWN"
+        schema = "UNKNOWN"
+        if app.connections:
+            last_conn = app.connections[-1]
+            if last_conn.database_name:
+                database = last_conn.database_name
+            if last_conn.server:
+                schema = last_conn.server
+        return f"{database}.{schema}.{load.source_table}"
 
     # =====================================================
     # MAIN WRITE METHOD
@@ -28,6 +45,8 @@ class GraphWriter:
     def write_app(self, app: QlikViewApp):
 
         with self.driver.session() as session:
+
+            now = str(datetime.now(UTC))
 
             # =================================================
             # Create Qlik Script Node
@@ -49,8 +68,28 @@ class GraphWriter:
                 """,
                 app_name=app.app_name,
                 id=self._generate_id(f"qlik_script::{app.app_name}"),
-                created_at=str(datetime.utcnow()),
+                created_at=now,
             )
+
+            # =================================================
+            # Process Variables (§3.9)
+            # =================================================
+            for var_name, var_value in app.variables.items():
+                session.run(
+                    """
+                    MERGE (v:Variable {name: $var_name})
+                    SET v.id = coalesce(v.id, $id),
+                        v.value = $var_value,
+                        v.source_system = 'QlikView'
+                    WITH v
+                    MATCH (q:QlikScript {name: $app_name})
+                    MERGE (q)-[:USES_VARIABLE]->(v)
+                    """,
+                    var_name=var_name,
+                    var_value=var_value,
+                    id=self._generate_id(f"variable::{app.app_name}.{var_name}"),
+                    app_name=app.app_name,
+                )
 
             # =================================================
             # Process Subroutines
@@ -139,7 +178,7 @@ class GraphWriter:
                     id=self._generate_id(f"qlik_table::{app.app_name}.{load.table_name}"),
                     is_mapping_load=load.is_mapping_load,
                     lineage_partial=load.lineage_partial,
-                    created_at=str(datetime.utcnow()),
+                    created_at=now,
                 )
 
                 # ---------------------------------------------
@@ -178,7 +217,7 @@ class GraphWriter:
                     )
 
                 # ---------------------------------------------
-                # Source lineage
+                # Source lineage (§3.4 — real FQN)
                 # ---------------------------------------------
 
                 if load.source_table:
@@ -193,7 +232,7 @@ class GraphWriter:
                             source_table=load.source_table,
                         )
                     else:
-                        fqn = f"UNKNOWN.UNKNOWN.{load.source_table}"
+                        fqn = self._build_fqn(load, app)
                         session.run(
                             """
                             MERGE (s:Table {
@@ -208,7 +247,7 @@ class GraphWriter:
                             source_table=load.source_table,
                             fqn=fqn,
                             id=self._generate_id(f"table::{fqn}"),
-                            created_at=str(datetime.utcnow()),
+                            created_at=now,
                         )
 
                         session.run(
@@ -249,7 +288,7 @@ class GraphWriter:
                         """,
                         field_name=field,
                         id=self._generate_id(f"attribute::{app.app_name}.{load.table_name}.{field}"),
-                        created_at=str(datetime.utcnow()),
+                        created_at=now,
                     )
 
                     session.run(
@@ -279,19 +318,23 @@ class GraphWriter:
                             table_name=load.table_name
                         )
                     
+                    # §5 — HAS_COLUMN on physical :Table via :Attribute
                     if field in load.sql_columns and load.source_table:
                         physical_col = load.sql_columns[field]
                         session.run(
                             """
                             MATCH (a:Attribute {name: $field_name})
-                            MERGE (pc:TableColumn {name: $physical_col, table: $source_table})
-                            SET pc.id = coalesce(pc.id, $pc_id)
+                            MATCH (s:Table {name: $source_table})
+                            MERGE (pc:Attribute {name: $physical_col})
+                            SET pc.id = coalesce(pc.id, $pc_id),
+                                pc.source_system = 'physical'
+                            MERGE (s)-[:HAS_COLUMN]->(pc)
                             MERGE (a)-[:DERIVES_FROM]->(pc)
                             """,
                             field_name=field,
                             physical_col=physical_col,
                             source_table=load.source_table,
-                            pc_id=self._generate_id(f"tablecolumn::{load.source_table}.{physical_col}")
+                            pc_id=self._generate_id(f"attribute::{load.source_table}.{physical_col}")
                         )
 
             # =================================================
@@ -302,10 +345,6 @@ class GraphWriter:
 
                 if not synth_field.is_synthetic:
                     continue
-
-                # ---------------------------------------------
-                # Calculated attribute node
-                # ---------------------------------------------
 
                 session.run(
                     """
@@ -324,12 +363,8 @@ class GraphWriter:
                     field_name=synth_field.name,
                     formula=synth_field.formula or "",
                     id=self._generate_id(f"attribute::{app.app_name}.SYNTHETIC.{synth_field.name}"),
-                    created_at=str(datetime.utcnow()),
+                    created_at=now,
                 )
-
-                # ---------------------------------------------
-                # Source attributes
-                # ---------------------------------------------
 
                 for source_field in synth_field.source_fields:
 
@@ -409,7 +444,7 @@ class GraphWriter:
                     source_table=join.source_table,
                     target_table=join.target_table,
                     join_type=join.join_type,
-                    created_at=str(datetime.utcnow()),
+                    created_at=now,
                 )
 
             # =================================================
@@ -422,12 +457,20 @@ class GraphWriter:
                     MERGE (c:Connection {name: $conn_name})
                     SET c.id = coalesce(c.id, $id),
                         c.connection_string = coalesce(c.connection_string, $conn_string),
+                        c.connection_class = coalesce(c.connection_class, $conn_class),
+                        c.server = coalesce(c.server, $server),
+                        c.database_name = coalesce(c.database_name, $database_name),
+                        c.database_type = coalesce(c.database_type, $database_type),
                         c.created_at = coalesce(c.created_at, $created_at)
                     """,
                     conn_name=conn.connection_name,
                     conn_string=conn.connection_string,
+                    conn_class=conn.connection_class or "",
+                    server=conn.server or "",
+                    database_name=conn.database_name or "",
+                    database_type=conn.database_type or "UNKNOWN",
                     id=self._generate_id(f"connection::{app.app_name}.{conn.connection_name}"),
-                    created_at=str(datetime.utcnow()),
+                    created_at=now,
                 )
                 session.run(
                     """
