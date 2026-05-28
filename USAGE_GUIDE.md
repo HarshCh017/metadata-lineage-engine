@@ -42,7 +42,7 @@ curl -X 'POST' \
 *Note: If `overwrite: false`, submitting the exact same file twice will bypass the parser using Incremental Hash Detection.*
 
 ## Step 5: Querying Temporal Lineage
-You can interact with the graph via the MCP server using Claude Desktop, or natively via Python:
+You can interact with the graph natively via Python:
 ```python
 from lineage_platform.api.services.graph_service import GraphService
 from lineage_platform.models.snapshot import SnapshotContext
@@ -57,12 +57,47 @@ snapshot = SnapshotContext(as_of_timestamp="2024-01-01T00:00:00Z")
 print(svc.get_table_lineage("db.schema.target_table", snapshot=snapshot))
 ```
 
-## Step 6: Observability
-Visit `http://localhost:8000/metrics` to scrape Prometheus telemetry.
+## Step 6: Connect Claude via MCP
+You can natively connect Claude Desktop to this lineage engine to ask natural language questions about your data ecosystem.
 
-## Step 7: Run Benchmarks (Optional)
+Edit your `claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "qlik-lineage": {
+      "command": "python",
+      "args": ["-m", "lineage_platform.mcp_server"],
+      "env": {
+        "NEO4J_URI": "bolt://localhost:7687",
+        "NEO4J_USERNAME": "neo4j",
+        "NEO4J_PASSWORD": "password"
+      }
+    }
+  }
+}
+```
+Restart Claude Desktop, and you can now ask: *"What tables feed into the Sales dashboard?"* or *"Show me the temporal lineage for CUSTOMER_DIM as of January 1st."*
+
+## Step 7: Observability
+Visit `http://localhost:8000/metrics` to scrape Prometheus telemetry.
+Key metrics to monitor:
+- `lineage_parse_failures_total`
+- `lineage_fallback_rates_total`
+- `lineage_parse_latency_seconds`
+
+## Step 8: Validation & Benchmarks
+To run the fuzzing validations to ensure parser correctness:
+```bash
+python -m pytest tests/fuzzing/ -v
+```
+
+To validate the semantic ontology against the gold standard corpus:
+```bash
+python -m pytest tests/corpus/ -v
+```
+
 To validate the system scale and temporal overhead on your hardware:
 ```bash
 python benchmarks/run_benchmarks.py
 ```
-This will run the Incremental Refresh test, the Graph Write Batch test, and the Temporal Overhead test.
+This will execute the Incremental Refresh test, the Graph Write Batch test (simulating 1,000 tables / 50,000 columns), and the Temporal Overhead test.

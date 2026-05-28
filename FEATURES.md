@@ -4,6 +4,25 @@ This document outlines the core capabilities of the Metadata Lineage Engine (Pha
 
 Unlike standard lineage extractors, this engine prioritizes **enterprise governance guarantees**, **temporal correctness**, and **observability**.
 
+## Architecture Overview
+
+```mermaid
+graph TD
+    A[Qlik Script / SQL] -->|Parsed by| B{ANTLR4 Parser}
+    B -- Syntax Error --> C[Regex Fallback Engine]
+    B -- Success --> D[QVSLoad AST]
+    C --> D
+    D --> E[QlikToIntermediateAdapter]
+    E --> F[GraphModel]
+    F --> G[SemanticNormalizer]
+    G --> H[BatchGraphWriter]
+    H -->|Upsert| I[(Neo4j Graph Database)]
+    
+    I --> J[GraphService API]
+    J --> K[Claude MCP Server]
+    J --> L[FastAPI Lineage Endpoints]
+```
+
 ## 1. Enterprise Governance Guarantees
 - **Temporal Snapshotting**: The graph stores time-bound relationships (`valid_from`, `valid_to`). Users can reconstruct exact historical lineage states using `SnapshotContext`.
 - **Graph Compaction**: Incremental refresh safely retires old lineage relationships. A simulated cold-archive JSON export handles graph compaction for relationships older than 90 days.
