@@ -7,10 +7,11 @@ You can execute all governance validations, benchmarks, and temporal latency tes
 ```bash
 python run_enterprise_test.py
 ```
-This runs three phases:
+This runs four phases:
 1. **Core Validation**: Executes `pytest tests/` (Semantic validations, regressions, unit tests).
 2. **Stress Validation**: Executes `pytest benchmarks/test_graph_density.py` (simulates 10 Million relationships to test governance overhead limits).
 3. **Temporal Benchmarks**: Executes `pytest benchmarks/test_temporal_benchmark.py` (verifies historical snapshot queries perform under SLA constraints).
+4. **Federated Governance Benchmarks**: Executes `pytest benchmarks/test_federated_scale.py` (verifies priority-tiered WorkloadManager behavior and synchronous Policy Evaluation overhead for 100k+ payloads).
 
 ## 2. Test Categories
 

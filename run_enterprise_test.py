@@ -21,11 +21,17 @@ def run_enterprise_test():
         print("[FAIL] Graph density stress tests failed.")
         sys.exit(exit_code_bench)
         
-    print("\n[3/3] Running Temporal Latency Benchmarks...")
+    print("\n[3/4] Running Temporal Latency Benchmarks...")
     exit_code_temporal = pytest.main(["benchmarks/test_temporal_benchmark.py", "-v"])
     if exit_code_temporal != 0:
         print("[FAIL] Temporal benchmarks failed.")
         sys.exit(exit_code_temporal)
+        
+    print("\n[4/4] Running Federated Governance & Concurrency Benchmarks...")
+    exit_code_fed = pytest.main(["benchmarks/test_federated_scale.py", "-v"])
+    if exit_code_fed != 0:
+        print("[FAIL] Federated benchmarks failed.")
+        sys.exit(exit_code_fed)
         
     print("="*60)
     print("[SUCCESS] All Enterprise Validation Gates Passed Successfully.")

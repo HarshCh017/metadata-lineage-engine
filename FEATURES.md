@@ -1,8 +1,8 @@
 # Metadata Lineage Engine - Features & Guarantees
 
-This document outlines the core capabilities of the Metadata Lineage Engine (Phase 12). 
+This document outlines the core capabilities of the Metadata Lineage Engine (Phase 14). 
 
-Unlike standard lineage extractors, this engine prioritizes **enterprise governance guarantees**, **temporal correctness**, and **observability**.
+Unlike standard lineage extractors, this engine prioritizes **enterprise governance guarantees**, **temporal correctness**, **federated policy enforcement**, and **observability**.
 
 ## Architecture Overview
 
@@ -19,11 +19,19 @@ graph TD
     H -->|Upsert| I[(Neo4j Graph Database)]
     
     I --> J[GraphService API]
-    J --> K[Claude MCP Server]
-    J --> L[FastAPI Lineage Endpoints]
+    J --> Y{GovernancePolicyEngine}
+    Y --> Z[QueryGovernanceEngine]
+    Z --> K[Claude MCP Server]
+    Z --> L[FastAPI Lineage Endpoints]
 ```
 
-## 1. Enterprise Governance Guarantees
+## 1. Federated Governance & Metadata Isolation
+- **Domain Namespaces**: Graph entities possess `namespace_id`, `trust_zone`, and `governance_scope` attributes. Edge traversals that cross organizational domains invoke cross-domain authorization policies.
+- **Dynamic Policy Enforcement**: The `GovernancePolicyEngine` centrally enforces `ALLOW`, `DENY`, `MASK`, and `REDACT` semantics. It operates as an interceptor before data is hashed or serialized, guaranteeing strict isolation and eliminating metadata leakage.
+- **Stewardship Boundaries**: Organizational accountability is linked to namespaces, resolving technical ownership, escalation protocols, and audit compliance scopes via the `StewardshipManager`.
+- **Workload Orchestration**: Heavy operations like point-in-time replays or distributed graph integrity scans are queued through an asynchronous, priority-tiered `WorkloadManager`, eliminating synchronous resource starvation.
+
+## 2. Enterprise Trust Guarantees
 - **Temporal Snapshotting & Replay**: The graph stores time-bound relationships (`valid_from`, `valid_to`). Users can reconstruct exact historical lineage states using the `ReplayEngine` and generate immutable snapshot manifests.
 - **Query Governance Engine**: Direct Cypher access is blocked. All queries are intercepted to enforce traversal budgets, calculate maximum node fanout cost, and ensure temporal safety.
 - **Graph Compaction & Integrity**: Incremental refresh safely retires old lineage relationships. The `GraphIntegrityVerifier` natively detects orphans, cyclic loops, and temporal window overlaps across the database.
@@ -32,8 +40,8 @@ graph TD
 ## 2. Advanced Parser Correctness
 - **ANTLR4 Grammar Support**: Core QlikView scripting (SET, SQL SELECT, LOAD, RESIDENT) is parsed using a formal ANTLR grammar, significantly reducing AST hallucinations compared to regex-only extraction.
 - **Structured Parser Recovery**: The `ParserRecoveryEngine` tracks execution provenance, degrading gracefully through `TOKEN_RECOVERY`, `PARTIAL_BLOCK_RECOVERY`, or `REGEX_FALLBACK`, actively tracking what was salvaged vs inferred.
-- **Multi-Dimensional Confidence**: Lineage nodes are scored across syntax, semantic, transformation, macro-resolution, and temporal confidence vectors, dynamically penalizing unresolvable elements.
-- **Semantic Lineage Validation**: Extracted ASTs are evaluated for logical soundness (join cardinalities, non-deterministic derivations, active unresolved `SELECT *` partial queries).
+- **Trust Propagation Engine**: The graph algorithmically propagates confidence degradation along edges. Low-confidence upstream transformations dynamically penalize the overall `TrustEvaluation` of downstream analytics.
+- **Governance Drift Intelligence**: Lineage structure shifts are quantified mathematically. The platform tracks mutation trajectories (schema drift vs semantic drift vs trust drift) over time.
 
 ## 3. Semantic Normalization & Ontology
 - **Intermediate Adapter**: Transforms messy parser-specific ASTs (`QlikViewApp`, `QVSLoad`) into a unified `GraphModel`.

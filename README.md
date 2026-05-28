@@ -12,7 +12,8 @@ The parsing pipeline is modular and robust:
 `QVSParser` → `IncludeResolver` → `CommentCleaner` → `VariableParser` → `extract_load_blocks` → `GraphWriter`
 
 Features:
-- **Enterprise Governance:** See [FEATURES.md](FEATURES.md) for details on Temporal Snapshotting, Compaction, and Corpus Validation.
+- **Federated Governance & Policies:** Supports multi-domain namespace isolation, dynamic masking/redaction via the `GovernancePolicyEngine`, and explicit stewardship metadata.
+- **Enterprise Governance:** See [FEATURES.md](FEATURES.md) for details on Temporal Snapshotting, Trust Propagation, Compaction, and Corpus Validation.
 - **Deep Lineage:** Extracts tables, fields, synthetic keys, subroutines, variables, and cross-dashboard dependencies.
 - **SQL Parsing:** Extracts physical table and column-level lineage directly from embedded SQL queries.
 - **Deterministic IDs:** Uses SHA-256 hashing (truncated to 16 chars) to guarantee consistent node identity across runs and between different parsers.
