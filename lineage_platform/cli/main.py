@@ -1,16 +1,10 @@
 import traceback
 
-from lineage_platform.batch.file_discovery import (
-    FileDiscovery
-)
+from lineage_platform.batch.file_discovery import FileDiscovery
 
-from lineage_platform.parsers.qlikview.qvs_parser import (
-    QVSParser
-)
+from lineage_platform.parsers.qlikview.qvs_parser import QVSParser
 
-from lineage_platform.neo4j.graph_writer import (
-    GraphWriter
-)
+from lineage_platform.neo4j.graph_writer import GraphWriter
 
 
 def main():
@@ -25,9 +19,7 @@ def main():
         # Discover QVS files
         # --------------------------------------------------
 
-        files = FileDiscovery.discover_qvs_files(
-            "data/input/qlikview"
-        )
+        files = FileDiscovery.discover_qvs_files("data/input/qlikview")
 
         print(f"Discovered {len(files)} QVS files")
 
@@ -58,43 +50,27 @@ def main():
 
             try:
 
-                app = parser.parse(
-                    str(file_path)
-                )
+                app = parser.parse(str(file_path))
 
-                print(
-                    f"Parsed app: {app.app_name}"
-                )
+                print(f"Parsed app: {app.app_name}")
 
-                print(
-                    f"Loads: {len(app.loads)}"
-                )
+                print(f"Loads: {len(app.loads)}")
 
-                print(
-                    f"Joins: {len(app.joins)}"
-                )
+                print(f"Joins: {len(app.joins)}")
 
-                print(
-                    f"Fields: {len(app.fields)}"
-                )
+                print(f"Fields: {len(app.fields)}")
 
                 # ------------------------------------------
                 # Write graph
                 # ------------------------------------------
 
-                graph_writer.write_app(
-                    app
-                )
+                graph_writer.write_app(app)
 
-                print(
-                    "Graph write successful"
-                )
+                print("Graph write successful")
 
             except Exception as file_error:
 
-                print(
-                    f"FAILED FILE: {file_path}"
-                )
+                print(f"FAILED FILE: {file_path}")
 
                 traceback.print_exc()
 

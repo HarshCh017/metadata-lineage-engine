@@ -6,7 +6,6 @@ class FieldParser:
 
     @staticmethod
     def find_load_terminator(text: str) -> int:
-
         """
         Find the real terminating semicolon
         while ignoring semicolons inside:
@@ -34,10 +33,10 @@ class FieldParser:
             # Track parentheses depth
             # ------------------------------------------
 
-            elif char == '(':
+            elif char == "(":
                 paren_depth += 1
 
-            elif char == ')':
+            elif char == ")":
 
                 if paren_depth > 0:
                     paren_depth -= 1
@@ -46,12 +45,7 @@ class FieldParser:
             # Detect actual LOAD terminator
             # ------------------------------------------
 
-            elif (
-                char == ';'
-                and not in_single_quote
-                and not in_double_quote
-                and paren_depth == 0
-            ):
+            elif char == ";" and not in_single_quote and not in_double_quote and paren_depth == 0:
                 return idx
 
         return -1
@@ -62,7 +56,6 @@ class FieldParser:
 
     @staticmethod
     def extract_fields(load_block: str) -> List[str]:
-
         """
         Extract fields from a LOAD block.
 
@@ -78,11 +71,7 @@ class FieldParser:
         # Locate LOAD keyword
         # --------------------------------------------------
 
-        load_match = re.search(
-            r'LOAD\s+(.*)',
-            load_block,
-            re.IGNORECASE | re.DOTALL
-        )
+        load_match = re.search(r"LOAD\s+(.*)", load_block, re.IGNORECASE | re.DOTALL)
 
         if not load_match:
             return []
@@ -93,9 +82,7 @@ class FieldParser:
         # Stop at actual LOAD terminator
         # --------------------------------------------------
 
-        semi_idx = FieldParser.find_load_terminator(
-            text_from_load
-        )
+        semi_idx = FieldParser.find_load_terminator(text_from_load)
 
         if semi_idx != -1:
             field_section = text_from_load[:semi_idx]
@@ -109,7 +96,7 @@ class FieldParser:
 
         fields = []
 
-        current = []
+        current: List[str] = []
 
         paren_depth = 0
 
@@ -132,10 +119,10 @@ class FieldParser:
             # Parentheses
             # ----------------------------------------------
 
-            elif char == '(':
+            elif char == "(":
                 paren_depth += 1
 
-            elif char == ')':
+            elif char == ")":
 
                 if paren_depth > 0:
                     paren_depth -= 1
@@ -144,14 +131,9 @@ class FieldParser:
             # Split only at top-level commas
             # ----------------------------------------------
 
-            if (
-                char == ','
-                and paren_depth == 0
-                and not in_single_quote
-                and not in_double_quote
-            ):
+            if char == "," and paren_depth == 0 and not in_single_quote and not in_double_quote:
 
-                field = ''.join(current).strip()
+                field = "".join(current).strip()
 
                 if field:
                     fields.append(field)
@@ -165,7 +147,7 @@ class FieldParser:
         # Final field
         # --------------------------------------------------
 
-        final_field = ''.join(current).strip()
+        final_field = "".join(current).strip()
 
         if final_field:
             fields.append(final_field)
@@ -176,22 +158,14 @@ class FieldParser:
 
         cleaned_fields = []
 
-        invalid_fields = {
-            'sql select',
-            'from',
-            'where',
-            'group by',
-            'resident',
-            'load',
-            'select'
-        }
+        invalid_fields = {"sql select", "from", "where", "group by", "resident", "load", "select"}
 
         for field in fields:
 
             field = field.strip()
 
             # Remove trailing semicolon
-            field = field.rstrip(';')
+            field = field.rstrip(";")
 
             # Skip empty
             if not field:
@@ -204,7 +178,7 @@ class FieldParser:
                 continue
 
             # Skip SQL FROM clauses accidentally captured
-            if lower_field.startswith('from '):
+            if lower_field.startswith("from "):
                 continue
 
             # --------------------------------------------------
@@ -214,17 +188,11 @@ class FieldParser:
             # -> Name_Upper
             # --------------------------------------------------
 
-            alias_match = re.search(
-                r'\s+AS\s+([A-Za-z0-9_]+)',
-                field,
-                flags=re.IGNORECASE
-            )
+            alias_match = re.search(r"\s+AS\s+([A-Za-z0-9_]+)", field, flags=re.IGNORECASE)
 
             if alias_match:
 
-                cleaned_fields.append(
-                    alias_match.group(1)
-                )
+                cleaned_fields.append(alias_match.group(1))
 
             else:
 
@@ -232,8 +200,6 @@ class FieldParser:
                 # Keep simple field
                 # --------------------------------------------------
 
-                cleaned_fields.append(
-                    field.strip()
-                )
+                cleaned_fields.append(field.strip())
 
         return cleaned_fields

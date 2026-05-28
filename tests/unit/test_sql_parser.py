@@ -1,6 +1,4 @@
-from lineage_platform.parsers.qlikview.sql_parser import (
-    SQLParser
-)
+from lineage_platform.parsers.qlikview.sql_parser import SQLParser
 
 
 def test_sql_table_extraction():
@@ -14,7 +12,4 @@ def test_sql_table_extraction():
 
     assert len(tables) > 0
 
-    assert 'CUSTOMER' in [
-        table.upper().split('.')[-1]
-        for table in tables
-    ]
+    assert "CUSTOMER" in [table.upper().split(".")[-1] for table in tables]

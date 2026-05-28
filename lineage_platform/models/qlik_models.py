@@ -2,10 +2,10 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 from enum import Enum
 
-
 # =========================================================
 # SOURCE TYPES
 # =========================================================
+
 
 class SourceType(str, Enum):
 
@@ -22,6 +22,7 @@ class SourceType(str, Enum):
 # QVS FIELD MODEL
 # =========================================================
 
+
 @dataclass
 class QVSField:
 
@@ -33,27 +34,22 @@ class QVSField:
 
     is_synthetic: bool = False
 
-    source_fields: List[str] = field(
-        default_factory=list
-    )
+    source_fields: List[str] = field(default_factory=list)
 
 
 # =========================================================
 # QVS LOAD MODEL
 # =========================================================
 
+
 @dataclass
 class QVSLoad:
 
     table_name: str
 
-    fields: List[str] = field(
-        default_factory=list
-    )
+    fields: List[str] = field(default_factory=list)
 
-    source_type: SourceType = (
-        SourceType.UNKNOWN
-    )
+    source_type: SourceType = SourceType.UNKNOWN
 
     source_table: Optional[str] = None
 
@@ -64,6 +60,7 @@ class QVSLoad:
 # QVS JOIN MODEL
 # =========================================================
 
+
 @dataclass
 class QVSJoin:
 
@@ -73,14 +70,13 @@ class QVSJoin:
 
     source_table: str
 
-    join_keys: List[str] = field(
-        default_factory=list
-    )
+    join_keys: List[str] = field(default_factory=list)
 
 
 # =========================================================
 # CONNECTION MODEL
 # =========================================================
+
 
 @dataclass
 class QVSConnection:
@@ -96,23 +92,16 @@ class QVSConnection:
 # MAIN APPLICATION MODEL
 # =========================================================
 
+
 @dataclass
 class QlikViewApp:
 
     app_name: str
 
-    loads: List[QVSLoad] = field(
-        default_factory=list
-    )
+    loads: List[QVSLoad] = field(default_factory=list)
 
-    joins: List[QVSJoin] = field(
-        default_factory=list
-    )
+    joins: List[QVSJoin] = field(default_factory=list)
 
-    fields: List[QVSField] = field(
-        default_factory=list
-    )
+    fields: List[QVSField] = field(default_factory=list)
 
-    connections: List[QVSConnection] = field(
-        default_factory=list
-    )
+    connections: List[QVSConnection] = field(default_factory=list)

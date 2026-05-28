@@ -58,30 +58,16 @@ class QlikViewParser:
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
 
-        content = file_path.read_text(
-            encoding="utf-8",
-            errors="ignore"
-        )
+        content = file_path.read_text(encoding="utf-8", errors="ignore")
 
         # Remove block comments like:
-        
 
-        content = re.sub(
-            r"/\*.*?\*/",
-            "",
-            content,
-            flags=re.DOTALL
-        )
+        content = re.sub(r"/\*.*?\*/", "", content, flags=re.DOTALL)
 
         # Remove REM comments like:
         # REM something ;
 
-        content = re.sub(
-            r"REM .*?;",
-            "",
-            content,
-            flags=re.IGNORECASE
-        )
+        content = re.sub(r"REM .*?;", "", content, flags=re.IGNORECASE)
 
         self.loads = []
 
@@ -231,11 +217,7 @@ class QlikViewParser:
 
             raw_fields = field_matches[0][0]
 
-            fields = [
-                f.strip()
-                for f in raw_fields.split(",")
-                if f.strip()
-            ]
+            fields = [f.strip() for f in raw_fields.split(",") if f.strip()]
 
         print(f"Detected source type: {source_type}")
         print(f"Detected source table: {source_table}")

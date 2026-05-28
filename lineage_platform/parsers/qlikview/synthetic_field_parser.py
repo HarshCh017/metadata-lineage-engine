@@ -1,13 +1,10 @@
 import re
-from typing import List
+from typing import List, Optional, Any
 
-from lineage_platform.models.qlik_models import (
-    QVSField
-)
+from lineage_platform.models.qlik_models import QVSField
 
 
 class SyntheticFieldParser:
-
     """
     Enterprise-safe synthetic field parser.
 
@@ -20,47 +17,19 @@ class SyntheticFieldParser:
     - ApplyMap
     """
 
-    FUNCTION_NAMES = {
-
-        'SUM',
-        'AVG',
-        'COUNT',
-        'MIN',
-        'MAX',
-        'IF',
-        'UPPER',
-        'LOWER',
-        'APPLYMAP',
-        'YEAR',
-        'MONTH',
-        'TODAY'
-
-    }
+    FUNCTION_NAMES = {"SUM", "AVG", "COUNT", "MIN", "MAX", "IF", "UPPER", "LOWER", "APPLYMAP", "YEAR", "MONTH", "TODAY"}
 
     @classmethod
-    def extract_synthetic_fields(
-        cls,
-        block: str,
-        table_name: str = None
-    ) -> List[QVSField]:
+    def extract_synthetic_fields(cls, block: str, table_name: Optional[str] = None) -> List[QVSField]:
 
-        synthetic_fields = []
+        synthetic_fields: List[Any] = []
 
         # -------------------------------------------------
         # Extract LOAD section only
         # -------------------------------------------------
 
         load_match = re.search(
-
-            r'LOAD(.*?)'
-            r'(RESIDENT|SQL SELECT|FROM|GROUP BY|;)',
-
-            block,
-
-            flags=(
-                re.IGNORECASE |
-                re.DOTALL
-            )
+            r"LOAD(.*?)" r"(RESIDENT|SQL SELECT|FROM|GROUP BY|;)", block, flags=(re.IGNORECASE | re.DOTALL)
         )
 
         if not load_match:
@@ -73,10 +42,7 @@ class SyntheticFieldParser:
         # Split fields safely
         # -------------------------------------------------
 
-        fields = re.split(
-            r',\s*\n',
-            load_content
-        )
+        fields = re.split(r",\s*\n", load_content)
 
         for field in fields:
 
@@ -86,14 +52,7 @@ class SyntheticFieldParser:
             # Detect aliases
             # ---------------------------------------------
 
-            alias_match = re.search(
-
-                r'(.+?)\s+AS\s+([A-Za-z0-9_]+)',
-
-                field,
-
-                flags=re.IGNORECASE
-            )
+            alias_match = re.search(r"(.+?)\s+AS\s+([A-Za-z0-9_]+)", field, flags=re.IGNORECASE)
 
             if not alias_match:
                 continue
@@ -115,10 +74,7 @@ class SyntheticFieldParser:
             # Extract source fields
             # ---------------------------------------------
 
-            tokens = re.findall(
-                r'\b[A-Za-z_][A-Za-z0-9_]*\b',
-                formula
-            )
+            tokens = re.findall(r"\b[A-Za-z_][A-Za-z0-9_]*\b", formula)
 
             source_fields = []
 
@@ -138,45 +94,22 @@ class SyntheticFieldParser:
 
                 # Skip common literals
 
-                if upper in {
-
-                    'HIGH',
-                    'LOW',
-                    'ACTIVE',
-                    'INACTIVE',
-                    'UNKNOWN',
-                    'VIP',
-                    'STANDARD',
-                    'A'
-
-                }:
+                if upper in {"HIGH", "LOW", "ACTIVE", "INACTIVE", "UNKNOWN", "VIP", "STANDARD", "A"}:
                     continue
 
                 # Avoid duplicates
 
                 if token not in source_fields:
 
-                    source_fields.append(
-                        token
-                    )
+                    source_fields.append(token)
 
             # ---------------------------------------------
             # Create lineage field
             # ---------------------------------------------
 
             synthetic_fields.append(
-
                 QVSField(
-
-                    name=alias,
-
-                    table_name=table_name,
-
-                    formula=formula,
-
-                    is_synthetic=True,
-
-                    source_fields=source_fields
+                    name=alias, table_name=table_name, formula=formula, is_synthetic=True, source_fields=source_fields
                 )
             )
 

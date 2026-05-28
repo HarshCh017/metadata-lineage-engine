@@ -3,7 +3,6 @@ from sqlglot import exp
 
 
 class SQLParser:
-
     """
     SQL lineage extraction using sqlglot.
 
@@ -19,30 +18,27 @@ class SQLParser:
     # =====================================================
 
     INVALID_TABLE_NAMES = {
-
         # Qlik keywords
-        'load',
-        'resident',
-        'join',
-        'left',
-        'right',
-        'inner',
-        'outer',
-        'full',
-
+        "load",
+        "resident",
+        "join",
+        "left",
+        "right",
+        "inner",
+        "outer",
+        "full",
         # SQL keywords
-        'select',
-        'from',
-        'where',
-        'group',
-        'by',
-        'order',
-        'having',
-        'union',
-
+        "select",
+        "from",
+        "where",
+        "group",
+        "by",
+        "order",
+        "having",
+        "union",
         # Misc
-        'sql',
-        'null'
+        "sql",
+        "null",
     }
 
     # =====================================================
@@ -50,10 +46,7 @@ class SQLParser:
     # =====================================================
 
     @staticmethod
-    def normalize_sql(
-        sql_query: str
-    ) -> str:
-
+    def normalize_sql(sql_query: str) -> str:
         """
         Convert Qlik SQL syntax into valid SQLGlot syntax.
         """
@@ -65,29 +58,21 @@ class SQLParser:
         # Remove Qlik prefix
         # ----------------------------------------------
 
-        sql_query = sql_query.replace(
-            'SQL SELECT',
-            'SELECT'
-        )
+        sql_query = sql_query.replace("SQL SELECT", "SELECT")
 
-        sql_query = sql_query.replace(
-            'sql select',
-            'SELECT'
-        )
+        sql_query = sql_query.replace("sql select", "SELECT")
 
         # ----------------------------------------------
         # Remove trailing semicolon
         # ----------------------------------------------
 
-        sql_query = sql_query.rstrip(';')
+        sql_query = sql_query.rstrip(";")
 
         # ----------------------------------------------
         # Normalize whitespace
         # ----------------------------------------------
 
-        sql_query = ' '.join(
-            sql_query.split()
-        )
+        sql_query = " ".join(sql_query.split())
 
         return sql_query
 
@@ -96,10 +81,7 @@ class SQLParser:
     # =====================================================
 
     @staticmethod
-    def is_valid_table_name(
-        table_name: str
-    ) -> bool:
-
+    def is_valid_table_name(table_name: str) -> bool:
         """
         Validate extracted lineage table names.
         """
@@ -123,10 +105,7 @@ class SQLParser:
         # Ignore keywords
         # ----------------------------------------------
 
-        if (
-            table_name.lower()
-            in SQLParser.INVALID_TABLE_NAMES
-        ):
+        if table_name.lower() in SQLParser.INVALID_TABLE_NAMES:
             return False
 
         return True
@@ -136,9 +115,7 @@ class SQLParser:
     # =====================================================
 
     @staticmethod
-    def extract_sql_tables(
-        sql_query: str
-    ):
+    def extract_sql_tables(sql_query: str):
 
         tables = []
 
@@ -148,11 +125,7 @@ class SQLParser:
             # Normalize SQL
             # ------------------------------------------
 
-            sql_query = (
-                SQLParser.normalize_sql(
-                    sql_query
-                )
-            )
+            sql_query = SQLParser.normalize_sql(sql_query)
 
             if not sql_query:
                 return []
@@ -161,40 +134,28 @@ class SQLParser:
             # Parse SQL
             # ------------------------------------------
 
-            parsed = sqlglot.parse_one(
-                sql_query
-            )
+            parsed = sqlglot.parse_one(sql_query)
 
             # ------------------------------------------
             # Extract table references
             # ------------------------------------------
 
-            for table in parsed.find_all(
-                exp.Table
-            ):
+            for table in parsed.find_all(exp.Table):
 
-                table_name = (
-                    table.name.strip()
-                )
+                table_name = table.name.strip()
 
                 # --------------------------------------
                 # Validation
                 # --------------------------------------
 
-                if not SQLParser.is_valid_table_name(
-                    table_name
-                ):
+                if not SQLParser.is_valid_table_name(table_name):
                     continue
 
-                tables.append(
-                    table_name
-                )
+                tables.append(table_name)
 
         except Exception as e:
 
-            print(
-                f"SQL parsing failed: {e}"
-            )
+            print(f"SQL parsing failed: {e}")
 
         # ------------------------------------------------
         # Remove duplicates while preserving order
@@ -208,9 +169,7 @@ class SQLParser:
 
             if table not in seen:
 
-                unique_tables.append(
-                    table
-                )
+                unique_tables.append(table)
 
                 seen.add(table)
 

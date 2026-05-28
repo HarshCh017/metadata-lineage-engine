@@ -2,37 +2,20 @@ import re
 from pathlib import Path
 from typing import List, Optional
 
-from lineage_platform.models.qlik_models import (
-    QVSLoad,
-    QVSJoin,
-    QVSField,
-    QlikViewApp,
-    SourceType
-)
+from lineage_platform.models.qlik_models import QVSLoad, QlikViewApp, SourceType
 
-from lineage_platform.parsers.qlikview.field_parser import (
-    FieldParser
-)
+from lineage_platform.parsers.qlikview.field_parser import FieldParser
 
-from lineage_platform.parsers.qlikview.join_parser import (
-    JoinParser
-)
+from lineage_platform.parsers.qlikview.join_parser import JoinParser
 
-from lineage_platform.parsers.qlikview.synthetic_field_parser import (
-    SyntheticFieldParser
-)
+from lineage_platform.parsers.qlikview.synthetic_field_parser import SyntheticFieldParser
 
-from lineage_platform.parsers.qlikview.connection_parser import (
-    ConnectionParser
-)
+from lineage_platform.parsers.qlikview.connection_parser import ConnectionParser
 
-from lineage_platform.parsers.qlikview.sql_parser import (
-    SQLParser
-)
+from lineage_platform.parsers.qlikview.sql_parser import SQLParser
 
 
 class QVSParser:
-
     """
     Enterprise-safe QlikView parser.
     """
@@ -48,19 +31,11 @@ class QVSParser:
     # MAIN PARSE METHOD
     # =====================================================
 
-    def parse(
-        self,
-        file_path: str
-    ) -> QlikViewApp:
+    def parse(self, file_path: str) -> QlikViewApp:
 
         path = Path(file_path)
 
-        with open(
-            path,
-            'r',
-            encoding='utf-8',
-            errors='ignore'
-        ) as f:
+        with open(path, "r", encoding="utf-8", errors="ignore") as f:
 
             content = f.read()
 
@@ -68,36 +43,25 @@ class QVSParser:
         # Clean comments
         # -------------------------------------------------
 
-        content = self.remove_comments(
-            content
-        )
+        content = self.remove_comments(content)
 
         # -------------------------------------------------
         # Create app
         # -------------------------------------------------
 
-        app = QlikViewApp(
-            app_name=path.stem
-        )
+        app = QlikViewApp(app_name=path.stem)
 
         # -------------------------------------------------
         # Parse connections
         # -------------------------------------------------
 
-        app.connections = (
-            self.connection_parser
-            .extract_connections(content)
-        )
+        app.connections = self.connection_parser.extract_connections(content)
 
         # -------------------------------------------------
         # Extract LOAD blocks
         # -------------------------------------------------
 
-        load_blocks = (
-            self.extract_load_blocks(
-                content
-            )
-        )
+        load_blocks = self.extract_load_blocks(content)
 
         # -------------------------------------------------
         # Parse LOAD blocks
@@ -107,49 +71,29 @@ class QVSParser:
 
         for block in load_blocks:
 
-            load = self.parse_load_block(
-                block
-            )
+            load = self.parse_load_block(block)
 
             if load:
 
-                app.loads.append(
-                    load
-                )
+                app.loads.append(load)
 
-                last_table_name = (
-                    load.table_name
-                )
+                last_table_name = load.table_name
 
             # ---------------------------------------------
             # Parse joins
             # ---------------------------------------------
 
-            joins = self.join_parser.extract_joins(
-                block,
-                last_table_name
-            )
+            joins = self.join_parser.extract_joins(block, last_table_name)
 
-            app.joins.extend(
-                joins
-            )
+            app.joins.extend(joins)
 
             # ---------------------------------------------
             # Parse synthetic fields
             # ---------------------------------------------
 
-            synthetic_fields = (
-                self.synthetic_parser
-                .extract_synthetic_fields(
-                    block,
-                    load.table_name
-                    if load else None
-                )
-            )
+            synthetic_fields = self.synthetic_parser.extract_synthetic_fields(block, load.table_name if load else None)
 
-            app.fields.extend(
-                synthetic_fields
-            )
+            app.fields.extend(synthetic_fields)
 
         return app
 
@@ -157,21 +101,13 @@ class QVSParser:
     # REMOVE COMMENTS
     # =====================================================
 
-    def remove_comments(
-        self,
-        content: str
-    ) -> str:
+    def remove_comments(self, content: str) -> str:
 
         # -------------------------------------------------
         # Remove block comments
         # -------------------------------------------------
 
-        content = re.sub(
-            r'/\*.*?\*/',
-            '',
-            content,
-            flags=re.DOTALL
-        )
+        content = re.sub(r"/\*.*?\*/", "", content, flags=re.DOTALL)
 
         # -------------------------------------------------
         # Remove single-line comments
@@ -183,26 +119,18 @@ class QVSParser:
 
             stripped = line.strip()
 
-            if stripped.startswith('//'):
+            if stripped.startswith("//"):
                 continue
 
-            cleaned_lines.append(
-                line
-            )
+            cleaned_lines.append(line)
 
-        return '\n'.join(
-            cleaned_lines
-        )
+        return "\n".join(cleaned_lines)
 
     # =====================================================
     # ENTERPRISE LOAD BLOCK EXTRACTION
     # =====================================================
 
-    def extract_load_blocks(
-        self,
-        script_content: str
-    ) -> List[str]:
-
+    def extract_load_blocks(self, script_content: str) -> List[str]:
         """
         Enterprise-safe LOAD block extraction.
 
@@ -219,7 +147,7 @@ class QVSParser:
 
         blocks = []
 
-        current_block = []
+        current_block: List[str] = []
 
         inside_load = False
 
@@ -242,10 +170,7 @@ class QVSParser:
             # CustomerMaster:
             # ---------------------------------------------
 
-            table_label_match = re.match(
-                r'^([A-Za-z0-9_]+)\s*:$',
-                stripped
-            )
+            table_label_match = re.match(r"^([A-Za-z0-9_]+)\s*:$", stripped)
 
             if table_label_match:
 
@@ -253,15 +178,11 @@ class QVSParser:
 
                 if current_block:
 
-                    blocks.append(
-                        '\n'.join(current_block)
-                    )
+                    blocks.append("\n".join(current_block))
 
                     current_block = []
 
-                current_block.append(
-                    stripped
-                )
+                current_block.append(stripped)
 
                 continue
 
@@ -270,21 +191,16 @@ class QVSParser:
             # ---------------------------------------------
 
             load_start_keywords = [
-
-                'LOAD',
-                'LEFT JOIN',
-                'RIGHT JOIN',
-                'INNER JOIN',
-                'OUTER JOIN',
-                'FULL JOIN',
-                'CONCATENATE'
-
+                "LOAD",
+                "LEFT JOIN",
+                "RIGHT JOIN",
+                "INNER JOIN",
+                "OUTER JOIN",
+                "FULL JOIN",
+                "CONCATENATE",
             ]
 
-            if any(
-                upper.startswith(keyword)
-                for keyword in load_start_keywords
-            ):
+            if any(upper.startswith(keyword) for keyword in load_start_keywords):
 
                 inside_load = True
 
@@ -294,19 +210,15 @@ class QVSParser:
 
             if inside_load or current_block:
 
-                current_block.append(
-                    line
-                )
+                current_block.append(line)
 
                 # -----------------------------------------
                 # End block on semicolon
                 # -----------------------------------------
 
-                if stripped.endswith(';'):
+                if stripped.endswith(";"):
 
-                    blocks.append(
-                        '\n'.join(current_block)
-                    )
+                    blocks.append("\n".join(current_block))
 
                     current_block = []
 
@@ -318,9 +230,7 @@ class QVSParser:
 
         if current_block:
 
-            blocks.append(
-                '\n'.join(current_block)
-            )
+            blocks.append("\n".join(current_block))
 
         return blocks
 
@@ -328,11 +238,7 @@ class QVSParser:
     # PARSE LOAD BLOCK
     # =====================================================
 
-    def parse_load_block(
-        self,
-        block: str
-    ) -> Optional[QVSLoad]:
-
+    def parse_load_block(self, block: str) -> Optional[QVSLoad]:
         """
         Parse a single LOAD block.
         """
@@ -341,40 +247,27 @@ class QVSParser:
         # Extract table name
         # -------------------------------------------------
 
-        table_match = re.search(
-            r'^([A-Za-z0-9_]+)\s*:',
-            block,
-            flags=re.MULTILINE
-        )
+        table_match = re.search(r"^([A-Za-z0-9_]+)\s*:", block, flags=re.MULTILINE)
 
         if table_match:
 
-            table_name = (
-                table_match.group(1)
-            )
+            table_name = table_match.group(1)
 
         else:
 
-            table_name = (
-                'UNKNOWN_TABLE'
-            )
+            table_name = "UNKNOWN_TABLE"
 
         # -------------------------------------------------
         # Extract fields
         # -------------------------------------------------
 
-        fields = (
-            self.field_parser
-            .extract_fields(block)
-        )
+        fields = self.field_parser.extract_fields(block)
 
         # -------------------------------------------------
         # Detect source type
         # -------------------------------------------------
 
-        source_type = (
-            SourceType.UNKNOWN
-        )
+        source_type = SourceType.UNKNOWN
 
         source_table = None
 
@@ -384,77 +277,43 @@ class QVSParser:
         # SQL SOURCE
         # -------------------------------------------------
 
-        sql_match = re.search(
-            r'(SELECT.*?FROM.*?;)',
-            block,
-            flags=(
-                re.IGNORECASE |
-                re.DOTALL
-            )
-        )
+        sql_match = re.search(r"(SELECT.*?FROM.*?;)", block, flags=(re.IGNORECASE | re.DOTALL))
 
         if sql_match:
 
-            source_type = (
-                SourceType.SQL
-            )
+            source_type = SourceType.SQL
 
-            sql_query = (
-                sql_match.group(1)
-            )
+            sql_query = sql_match.group(1)
 
-            sql_tables = (
-                SQLParser
-                .extract_sql_tables(
-                    sql_query
-                )
-            )
+            sql_tables = SQLParser.extract_sql_tables(sql_query)
 
             if sql_tables:
 
-                source_table = (
-                    sql_tables[0]
-                )
+                source_table = sql_tables[0]
 
         # -------------------------------------------------
         # RESIDENT SOURCE
         # -------------------------------------------------
 
-        resident_match = re.search(
-            r'RESIDENT\s+([A-Za-z0-9_]+)',
-            block,
-            flags=re.IGNORECASE
-        )
+        resident_match = re.search(r"RESIDENT\s+([A-Za-z0-9_]+)", block, flags=re.IGNORECASE)
 
         if resident_match:
 
-            source_type = (
-                SourceType.RESIDENT
-            )
+            source_type = SourceType.RESIDENT
 
-            source_table = (
-                resident_match.group(1)
-            )
+            source_table = resident_match.group(1)
 
         # -------------------------------------------------
         # FILE SOURCE
         # -------------------------------------------------
 
-        from_match = re.search(
-            r'FROM\s+[\'"](.+?)[\'"]',
-            block,
-            flags=re.IGNORECASE
-        )
+        from_match = re.search(r'FROM\s+[\'"](.+?)[\'"]', block, flags=re.IGNORECASE)
 
         if from_match:
 
-            source_type = (
-                SourceType.FILE
-            )
+            source_type = SourceType.FILE
 
-            source_table = (
-                from_match.group(1)
-            )
+            source_table = from_match.group(1)
 
         # -------------------------------------------------
         # Return model
@@ -465,5 +324,5 @@ class QVSParser:
             fields=fields,
             source_type=source_type,
             source_table=source_table,
-            sql_query=sql_query
+            sql_query=sql_query,
         )

@@ -2,13 +2,10 @@ from neo4j import GraphDatabase
 from uuid import uuid4
 from datetime import datetime
 
-from lineage_platform.models.qlik_models import (
-    QlikViewApp
-)
+from lineage_platform.models.qlik_models import QlikViewApp
 
 
 class GraphWriter:
-
     """
     Enterprise Neo4j Graph Writer
     Writes lineage metadata into Neo4j.
@@ -16,19 +13,13 @@ class GraphWriter:
 
     def __init__(self):
 
-        self.driver = GraphDatabase.driver(
-            "bolt://localhost:7687",
-            auth=("neo4j", "password")
-        )
+        self.driver = GraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", "password"))
 
     # =====================================================
     # MAIN WRITE METHOD
     # =====================================================
 
-    def write_app(
-        self,
-        app: QlikViewApp
-    ):
+    def write_app(self, app: QlikViewApp):
 
         with self.driver.session() as session:
 
@@ -52,7 +43,7 @@ class GraphWriter:
                 """,
                 app_name=app.app_name,
                 id=str(uuid4()),
-                created_at=str(datetime.utcnow())
+                created_at=str(datetime.utcnow()),
             )
 
             # =================================================
@@ -81,7 +72,7 @@ class GraphWriter:
                     """,
                     table_name=load.table_name,
                     id=str(uuid4()),
-                    created_at=str(datetime.utcnow())
+                    created_at=str(datetime.utcnow()),
                 )
 
                 # ---------------------------------------------
@@ -101,7 +92,7 @@ class GraphWriter:
                     MERGE (q)-[:USES_TABLE]->(t)
                     """,
                     app_name=app.app_name,
-                    table_name=load.table_name
+                    table_name=load.table_name,
                 )
 
                 # ---------------------------------------------
@@ -128,7 +119,7 @@ class GraphWriter:
                         """,
                         source_table=load.source_table,
                         id=str(uuid4()),
-                        created_at=str(datetime.utcnow())
+                        created_at=str(datetime.utcnow()),
                     )
 
                     session.run(
@@ -144,7 +135,7 @@ class GraphWriter:
                         MERGE (t)-[:READS_FROM]->(s)
                         """,
                         table_name=load.table_name,
-                        source_table=load.source_table
+                        source_table=load.source_table,
                     )
 
                 # ---------------------------------------------
@@ -187,7 +178,7 @@ class GraphWriter:
                         """,
                         field_name=field,
                         id=str(uuid4()),
-                        created_at=str(datetime.utcnow())
+                        created_at=str(datetime.utcnow()),
                     )
 
                     session.run(
@@ -203,16 +194,16 @@ class GraphWriter:
                         MERGE (t)-[:HAS_ATTRIBUTE]->(a)
                         """,
                         table_name=load.table_name,
-                        field_name=field
+                        field_name=field,
                     )
 
             # =================================================
             # Synthetic lineage
             # =================================================
 
-            for field in app.fields:
+            for synth_field in app.fields:
 
-                if not field.is_synthetic:
+                if not synth_field.is_synthetic:
                     continue
 
                 # ---------------------------------------------
@@ -239,17 +230,17 @@ class GraphWriter:
                             $created_at
                         )
                     """,
-                    field_name=field.name,
-                    formula=field.formula or "",
+                    field_name=synth_field.name,
+                    formula=synth_field.formula or "",
                     id=str(uuid4()),
-                    created_at=str(datetime.utcnow())
+                    created_at=str(datetime.utcnow()),
                 )
 
                 # ---------------------------------------------
                 # Source attributes
                 # ---------------------------------------------
 
-                for source_field in field.source_fields:
+                for source_field in synth_field.source_fields:
 
                     session.run(
                         """
@@ -263,7 +254,7 @@ class GraphWriter:
                         )
                         """,
                         source_field=source_field,
-                        id=str(uuid4())
+                        id=str(uuid4()),
                     )
 
                     session.run(
@@ -278,8 +269,8 @@ class GraphWriter:
 
                         MERGE (a)-[:DERIVED_FROM]->(s)
                         """,
-                        field_name=field.name,
-                        source_field=source_field
+                        field_name=synth_field.name,
+                        source_field=source_field,
                     )
 
             # =================================================
@@ -300,7 +291,7 @@ class GraphWriter:
                     )
                     """,
                     source_table=join.source_table,
-                    id=str(uuid4())
+                    id=str(uuid4()),
                 )
 
                 session.run(
@@ -315,7 +306,7 @@ class GraphWriter:
                     )
                     """,
                     target_table=join.target_table,
-                    id=str(uuid4())
+                    id=str(uuid4()),
                 )
 
                 session.run(
@@ -339,7 +330,7 @@ class GraphWriter:
                     source_table=join.source_table,
                     target_table=join.target_table,
                     join_type=join.join_type,
-                    created_at=str(datetime.utcnow())
+                    created_at=str(datetime.utcnow()),
                 )
 
     # =====================================================
@@ -347,7 +338,6 @@ class GraphWriter:
     # =====================================================
 
     def close(self):
-
         """
         Properly close Neo4j driver.
         Prevents driver cleanup warnings.

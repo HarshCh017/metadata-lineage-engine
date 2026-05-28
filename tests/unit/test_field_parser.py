@@ -13,6 +13,6 @@ def test_field_parsing():
 
     fields = FieldParser.extract_fields(block)
 
-    assert 'CustomerID' in fields
-    assert 'Name_Upper' in fields
-    assert 'TotalSales' in fields
+    assert "CustomerID" in fields
+    assert "Name_Upper" in fields
+    assert "TotalSales" in fields

@@ -5,7 +5,6 @@ class FileDiscovery:
 
     @staticmethod
     def discover_qvs_files(root_path: str):
-
         """
         Recursively discover all QVS files.
         """
@@ -18,9 +17,6 @@ class FileDiscovery:
 
             return []
 
-        files = [
-            f for f in root.rglob("*.qvs")
-            if not f.name.startswith("._")
-        ]
+        files = [f for f in root.rglob("*.qvs") if not f.name.startswith("._")]
 
         return files

@@ -9,29 +9,14 @@ router = APIRouter()
 # =========================================================
 
 driver = GraphDatabase.driver(
-
-    os.getenv(
-        "NEO4J_URI",
-        "bolt://localhost:7687"
-    ),
-
-    auth=(
-
-        os.getenv(
-            "NEO4J_USERNAME",
-            "neo4j"
-        ),
-
-        os.getenv(
-            "NEO4J_PASSWORD",
-            "password"
-        )
-    )
+    os.getenv("NEO4J_URI", "bolt://localhost:7687"),
+    auth=(os.getenv("NEO4J_USERNAME", "neo4j"), os.getenv("NEO4J_PASSWORD", "password")),
 )
 
 # =========================================================
 # Node Metadata Endpoint
 # =========================================================
+
 
 @router.get("/node/{node_id}")
 def get_node_details(node_id: str):
@@ -57,10 +42,7 @@ def get_node_details(node_id: str):
 
     with driver.session() as session:
 
-        result = session.run(
-            query,
-            node_id=node_id
-        )
+        result = session.run(query, node_id=node_id)
 
         record = result.single()
 
@@ -70,40 +52,27 @@ def get_node_details(node_id: str):
 
         if not record or record["n"] is None:
 
-            return {
-                "error": "Node not found"
-            }
+            return {"error": "Node not found"}
 
         # -------------------------------------------------
         # Convert Neo4j node to dict
         # -------------------------------------------------
 
-        node_data = dict(
-            record["n"]
-        )
+        node_data = dict(record["n"])
 
         # -------------------------------------------------
         # Build response
         # -------------------------------------------------
 
-        return {
+        return {"labels": record["labels"], "properties": node_data, "connections": record["connections"]}
 
-            "labels": record["labels"],
-
-            "properties": node_data,
-
-            "connections": record[
-                "connections"
-            ]
-        }
 
 # =========================================================
 # Health Test Endpoint
 # =========================================================
 
+
 @router.get("/node-test")
 def node_test():
 
-    return {
-        "status": "node metadata route working"
-    }
+    return {"status": "node metadata route working"}
