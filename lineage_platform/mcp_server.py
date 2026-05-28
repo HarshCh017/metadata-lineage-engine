@@ -78,7 +78,7 @@ def get_dashboard_metrics(dashboard_name: str) -> str:
     """
     driver = get_driver()
     cypher = \"\"\"
-    MATCH (s:QlikSheet)-[:HAS_CHART]->(c:QlikChart)-[:USES_FIELD]->(f:TableColumn)
+    MATCH (s:QlikSheet)-[:DISPLAYS_CHART]->(c:QlikChart)-[:USES_FIELD]->(f:Attribute)
     WHERE toLower(s.name) CONTAINS toLower($name)
     RETURN s.name AS sheet, c.title AS chart, collect(f.name) AS fields
     LIMIT 50
@@ -96,6 +96,34 @@ def get_dashboard_metrics(dashboard_name: str) -> str:
             return "Dashboard Metrics:\\n" + "\\n".join(metrics)
     except Exception as e:
         return f"Error fetching metrics: {str(e)}"
+    finally:
+        driver.close()
+
+@mcp.tool()
+def get_script_subroutines(script_name: str) -> str:
+    """
+    Get the subroutines defined within a specific Qlik script.
+    Allows Claude to understand the modular logic transformations.
+    """
+    driver = get_driver()
+    cypher = \"\"\"
+    MATCH (s:QlikScript)-[:DEFINES_SUBROUTINE]->(sub:Subroutine)
+    WHERE toLower(s.name) CONTAINS toLower($name)
+    RETURN s.name AS script, sub.name AS subroutine
+    LIMIT 50
+    \"\"\"
+    try:
+        with driver.session() as session:
+            result = session.run(cypher, name=script_name)
+            subs = []
+            for r in result:
+                subs.append(f"Script: {r['script']} | Subroutine: {r['subroutine']}")
+            
+            if not subs:
+                return f"No subroutines found for script containing '{script_name}'."
+            return "Script Subroutines:\\n" + "\\n".join(subs)
+    except Exception as e:
+        return f"Error fetching subroutines: {str(e)}"
     finally:
         driver.close()
 

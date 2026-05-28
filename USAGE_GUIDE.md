@@ -146,3 +146,37 @@ If you want Claude to interact with your graph automatically:
    }
    ```
 3. Restart Claude Desktop. You can now ask Claude questions like, *"What tables does the Sales dashboard use?"*
+
+---
+
+## 10. Running Enterprise Benchmarks
+
+To validate the engine's throughput and Neo4j batch insertion performance:
+1. Ensure your Neo4j database is running (Step 4).
+2. Run the benchmarking suite:
+   ```bash
+   python benchmarks/run_benchmarks.py
+   ```
+*This will generate a massive 50,000-line mock Qlik file and test parsing speeds in MB/s, followed by testing graph insertion speed in nodes/sec using the new `BatchGraphWriter`.*
+
+---
+
+## 11. Generating the ANTLR AST Parser (Advanced)
+
+We are transitioning the parser from regex-based extraction to a formal AST using ANTLR4.
+If you wish to modify the grammar (`lineage_platform/grammar/qlikview/*.g4`) and re-generate the Python parser:
+
+1. Ensure you have Java installed (`java -version`).
+2. Download the ANTLR4 tool:
+   ```bash
+   # Windows (PowerShell)
+   Invoke-WebRequest -Uri "https://www.antlr.org/download/antlr-4.13.1-complete.jar" -OutFile "antlr-4.13.1-complete.jar"
+   
+   # macOS/Linux
+   curl -O https://www.antlr.org/download/antlr-4.13.1-complete.jar
+   ```
+3. Generate the Python3 target code:
+   ```bash
+   java -jar antlr-4.13.1-complete.jar -Dlanguage=Python3 lineage_platform/grammar/qlikview/QlikViewLexer.g4 lineage_platform/grammar/qlikview/QlikViewParser.g4 -visitor
+   ```
+*This generates `QlikViewParserVisitor.py` and other support files, which are consumed by `antlr_visitor.py` for structured metadata extraction.*

@@ -10,7 +10,8 @@ logger = structlog.get_logger()
 
 from lineage_platform.parsers.qlikview.qvs_parser import QVSParser
 from lineage_platform.parsers.qlikview.qvw_parser import QVWParser
-from lineage_platform.neo4j.graph_writer import GraphWriter
+from lineage_platform.models.adapters import QlikToIntermediateAdapter
+from lineage_platform.neo4j.batch_writer import BatchGraphWriter
 
 # Prometheus counters (§12)
 FILES_PARSED = Counter("qlikview_files_parsed_total", "Total QlikView files parsed")
@@ -77,8 +78,9 @@ def parse_script(request: ParseRequest):
             qvw_parser = QVWParser()
             app.sheets = qvw_parser.parse_metadata(request.xml_metadata_path)
 
-        writer = GraphWriter()
-        writer.write_app(app)
+        intermediate_graph = QlikToIntermediateAdapter.transform(app)
+        writer = BatchGraphWriter()
+        writer.write_graph(intermediate_graph)
         writer.close()
 
         duration_ms = round((time.time() - start_time) * 1000, 2)

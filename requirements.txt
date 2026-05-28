@@ -24,13 +24,14 @@ neo4j==5.28.2
 sqlglot==27.0.0
 
 # =========================================================
-# Observability & Encoding
+# Observability, Encoding & Parsing
 # =========================================================
 
 charset-normalizer==3.4.7
 structlog==25.5.0
 prometheus-client==0.25.0
 mcp==1.27.1
+antlr4-python3-runtime==4.13.1
 
 # =========================================================
 # Environment Variables
