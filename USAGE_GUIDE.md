@@ -157,11 +157,22 @@ To validate the engine's throughput and Neo4j batch insertion performance:
    ```bash
    python benchmarks/run_benchmarks.py
    ```
-*This will generate a massive 50,000-line mock Qlik file and test parsing speeds in MB/s, followed by testing graph insertion speed in nodes/sec using the new `BatchGraphWriter`.*
+*This generates a synthetic 50,000-line script and benchmarks parsing throughput, peak memory usage (via `tracemalloc`), and AST fallback rates. It then tests graph insertion speed using `BatchGraphWriter` via UNWIND. All results are saved as historical snapshots in `benchmarks/results/`.*
 
 ---
 
-## 11. Generating the ANTLR AST Parser (Advanced)
+## 11. OpenLineage Export Interoperability
+
+You can seamlessly export the internal `GraphModel` to standard OpenLineage JSON specifications.
+Run the API (Step 5) and hit the export endpoint:
+```bash
+curl -X GET "http://localhost:8000/export/openlineage?namespace=qlikview://enterprise"
+```
+*This triggers semantic normalization and outputs `RunEvent` structures mapped from the graph.*
+
+---
+
+## 12. Generating the ANTLR AST Parser (Advanced)
 
 We are transitioning the parser from regex-based extraction to a formal AST using ANTLR4.
 If you wish to modify the grammar (`lineage_platform/grammar/qlikview/*.g4`) and re-generate the Python parser:
@@ -177,6 +188,6 @@ If you wish to modify the grammar (`lineage_platform/grammar/qlikview/*.g4`) and
    ```
 3. Generate the Python3 target code:
    ```bash
-   java -jar antlr-4.13.1-complete.jar -Dlanguage=Python3 lineage_platform/grammar/qlikview/QlikViewLexer.g4 lineage_platform/grammar/qlikview/QlikViewParser.g4 -visitor
+   java -jar antlr-4.13.1-complete.jar -Dlanguage=Python3 lineage_platform/grammar/qlikview/QlikViewLexer.g4 lineage_platform/grammar/qlikview/QlikViewParser.g4 -visitor -o lineage_platform/parsers/qlikview/generated/
    ```
-*This generates `QlikViewParserVisitor.py` and other support files, which are consumed by `antlr_visitor.py` for structured metadata extraction.*
+*This generates `QlikViewLexer` and `QlikViewParser` classes inside `parsers/qlikview/generated/`, which are securely leveraged by `ANTLRQVSParser`.*
