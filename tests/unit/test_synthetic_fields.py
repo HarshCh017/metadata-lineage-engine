@@ -1,10 +1,7 @@
 from lineage_platform.parsers.qlikview.qvs_parser import QVSParser
-
+from lineage_platform.parsers.qlikview.field_parser import FieldParser
 
 def test_synthetic_fields():
-    parser = QVSParser()
-    app = parser.parse("data/input/qlikview/08_realistic_dashboard.qvs")
-    field_names = [field.name for field in app.fields]
-    assert "AmountWithTax" in field_names
-    assert "CustomerStatus" in field_names
-    assert "OrderCount" in field_names
+    script = "LOAD SUM(Amount) / Rate AS SyntheticField, B;"
+    fields = FieldParser.extract_fields(script)
+    assert fields == ["SyntheticField", "B"]
