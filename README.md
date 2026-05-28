@@ -12,13 +12,16 @@ The parsing pipeline is modular and robust:
 `QVSParser` → `IncludeResolver` → `CommentCleaner` → `VariableParser` → `extract_load_blocks` → `GraphWriter`
 
 Features:
+- **Enterprise Governance:** See [FEATURES.md](FEATURES.md) for details on Temporal Snapshotting, Compaction, and Corpus Validation.
 - **Deep Lineage:** Extracts tables, fields, synthetic keys, subroutines, variables, and cross-dashboard dependencies.
 - **SQL Parsing:** Extracts physical table and column-level lineage directly from embedded SQL queries.
 - **Deterministic IDs:** Uses SHA-256 hashing (truncated to 16 chars) to guarantee consistent node identity across runs and between different parsers.
 - **Observability:** Prometheus metrics + structlog for structured JSON logging.
 - **Macro Expansion:** Recursively expands `$(var)` variables and `$(Include=...)` files up to configurable depths.
 
-## 🚀 Quick Start
+## 🚀 Quick Start & Guides
+
+For detailed step-by-step usage, refer to the [USAGE GUIDE](USAGE_GUIDE.md).
 
 ### 1. Requirements
 - Python 3.11
