@@ -41,6 +41,15 @@ class TelemetryManager:
         cls.GRAPH_INSERT_LATENCY = get_or_create_histogram("neo4j_batch_insert_seconds", "Latency of Neo4j graph batch writes")
         cls.PARSE_LATENCY = get_or_create_histogram("qlikview_parse_latency_seconds", "Latency of QlikView parsing phase")
             
+        # Phase 13 Governance Metrics
+        cls.LINEAGE_CONFIDENCE_SCORE = get_or_create_histogram("lineage_confidence_score", "Multi-dimensional confidence score of semantic lineage")
+        cls.TEMPORAL_QUERY_LATENCY = get_or_create_histogram("temporal_query_latency_seconds", "Latency of historical temporal queries")
+        cls.GRAPH_INTEGRITY_FAILURES = get_or_create_counter("graph_integrity_failures", "Count of graph structural or temporal integrity violations")
+        cls.ORPHAN_NODE_COUNT = get_or_create_histogram("orphan_node_count", "Number of disconnected or orphaned nodes discovered during compaction")
+        cls.RECOVERY_ENGINE_ACTIVATIONS = get_or_create_counter("recovery_engine_activations", "Count of parser recovery engine salvages")
+        cls.SEMANTIC_VALIDATION_FAILURES = get_or_create_counter("semantic_validation_failures", "Count of failed semantic validation assertions")
+        cls.LINEAGE_DRIFT_RATE = get_or_create_histogram("lineage_drift_rate", "Velocity of lineage structural changes over time")
+        
         cls._initialized = True
 
 # Initialize metrics on import

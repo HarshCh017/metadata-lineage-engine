@@ -27,6 +27,19 @@ class ParseResultMetadata:
     errors: list[str]
     failure_type: ParserFailureType = ParserFailureType.UNKNOWN
 
+    # Phase 13 Multi-dimensional confidence
+    syntax_confidence: float = 1.0
+    semantic_confidence: float = 1.0
+    transformation_confidence: float = 1.0
+    macro_resolution_confidence: float = 1.0
+    temporal_confidence: float = 1.0
+    
+    @property
+    def aggregate_confidence(self) -> float:
+        return (self.syntax_confidence + self.semantic_confidence + 
+                self.transformation_confidence + self.macro_resolution_confidence + 
+                self.temporal_confidence) / 5.0
+
 class ParserFailure(Exception):
     pass
 
@@ -83,9 +96,15 @@ class ANTLRQVSParser:
 
         except ParserFailure as e:
             logger.warning("antlr_parsing_failed", reason=str(e), action="falling_back_to_regex")
+            
+            from lineage_platform.parsers.recovery.recovery_engine import ParserRecoveryEngine
+            recovery_engine = ParserRecoveryEngine()
+            prov = recovery_engine.attempt_recovery(e, content)
+            
             metadata.fallback_triggered = True
-            metadata.parser_engine = "REGEX_FALLBACK"
+            metadata.parser_engine = prov.strategy_used.value
             metadata.errors.append(str(e))
+            metadata.syntax_confidence -= prov.confidence_penalty
             
             # Execute emergency regex parser
             script_node = self.regex_parser.parse(content=content)
@@ -93,9 +112,15 @@ class ANTLRQVSParser:
         except Exception as e:
             # Catch memory overflows or deep recursion limits
             logger.error("critical_parser_failure", error=str(e))
+            
+            from lineage_platform.parsers.recovery.recovery_engine import ParserRecoveryEngine
+            recovery_engine = ParserRecoveryEngine()
+            prov = recovery_engine.attempt_recovery(e, content)
+            
             metadata.fallback_triggered = True
-            metadata.parser_engine = "REGEX_FALLBACK"
+            metadata.parser_engine = prov.strategy_used.value
             metadata.errors.append(f"Critical overflow: {str(e)}")
+            metadata.syntax_confidence -= prov.confidence_penalty
             
             script_node = self.regex_parser.parse(content=content)
 
