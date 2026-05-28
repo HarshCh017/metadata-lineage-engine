@@ -18,6 +18,9 @@ def run_benchmarks():
     print("    (Note: Requires Neo4j to be running on localhost:7687)")
     subprocess.run([sys.executable, "benchmarks/test_graph_write.py"], env=env)
     
+    print("\n[3] Running Incremental Refresh Benchmark...")
+    subprocess.run([sys.executable, "benchmarks/test_incremental.py"], env=env)
+    
     print("\n=" * 60)
     print(" BENCHMARKS COMPLETE ")
     print("=" * 60)

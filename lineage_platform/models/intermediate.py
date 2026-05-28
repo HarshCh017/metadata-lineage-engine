@@ -3,12 +3,26 @@ from typing import List, Optional, Dict, Any
 
 from enum import Enum
 
+from datetime import datetime
+
 # =========================================================
 # INTERMEDIATE METADATA MODEL
 # =========================================================
 # This model decouples source-specific parsing (Qlik, SQL, etc.)
 # from graph persistence (Neo4j, OpenLineage, etc.).
 # =========================================================
+
+@dataclass
+class TemporalMixin:
+    is_active: bool = field(default=True, kw_only=True)
+    valid_from: Optional[datetime] = field(default=None, kw_only=True)
+    valid_to: Optional[datetime] = field(default=None, kw_only=True)
+    lineage_version: Optional[str] = field(default=None, kw_only=True)
+
+@dataclass
+class ProvenanceMixin:
+    created_by_parser: str = field(default="UNKNOWN", kw_only=True)
+    ast_node_type: Optional[str] = field(default=None, kw_only=True)
 
 class TransformationType(str, Enum):
     AGGREGATION = "AGGREGATION"
@@ -24,7 +38,7 @@ class TransformationType(str, Enum):
     UNKNOWN = "UNKNOWN"
 
 @dataclass
-class TransformationNode:
+class TransformationNode(TemporalMixin, ProvenanceMixin):
     id: str
     expression: str
     transformation_type: TransformationType = TransformationType.UNKNOWN
@@ -35,7 +49,7 @@ class TransformationNode:
     properties: Dict[str, Any] = field(default_factory=dict)
 
 @dataclass
-class FieldNode:
+class FieldNode(TemporalMixin, ProvenanceMixin):
     id: str
     name: str
     data_type: str = "UNKNOWN"
@@ -46,7 +60,7 @@ class FieldNode:
     properties: Dict[str, Any] = field(default_factory=dict)
 
 @dataclass
-class DatasetNode:
+class DatasetNode(TemporalMixin, ProvenanceMixin):
     id: str
     name: str
     fully_qualified_name: str
@@ -56,7 +70,7 @@ class DatasetNode:
     properties: Dict[str, Any] = field(default_factory=dict)
 
 @dataclass
-class ProcessNode:
+class ProcessNode(TemporalMixin, ProvenanceMixin):
     id: str
     name: str
     process_type: str = "script" # script, subroutine, query
@@ -64,7 +78,7 @@ class ProcessNode:
     properties: Dict[str, Any] = field(default_factory=dict)
 
 @dataclass
-class LineageEdge:
+class LineageEdge(TemporalMixin, ProvenanceMixin):
     source_id: str
     target_id: str
     edge_type: str = "DERIVES_FROM" # DERIVES_FROM, LOADS_FROM

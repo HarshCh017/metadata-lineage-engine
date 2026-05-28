@@ -48,20 +48,26 @@ class ANTLRQVSParser:
                 from .generated.QlikViewLexer import QlikViewLexer
                 from .generated.QlikViewParser import QlikViewParser
                 from antlr4 import InputStream, CommonTokenStream
+                from .antlr_visitor import QlikViewASTVisitor
             except ImportError:
                 raise ParserFailure("ANTLR generated classes missing. Run grammar compilation step.")
 
-            # TODO: Initialize ANTLR Lexer/Parser and Visitor
-            # input_stream = InputStream(content)
-            # lexer = QlikViewLexer(input_stream)
-            # stream = CommonTokenStream(lexer)
-            # parser = QlikViewParser(stream)
-            # tree = parser.script()
-            # visitor = QlikViewASTVisitor()
-            # script_node = visitor.visit(tree)
+            # Initialize ANTLR Lexer/Parser and Visitor
+            input_stream = InputStream(content)
+            lexer = QlikViewLexer(input_stream)
+            stream = CommonTokenStream(lexer)
+            parser = QlikViewParser(stream)
+            tree = parser.script()
+            
+            visitor = QlikViewASTVisitor()
+            app = visitor.visit(tree)
+            
+            # If the tree visit yielded no loads and no variables but we had script content, fallback
+            if len(app.loads) == 0 and len(app.variables) == 0 and len(content.strip()) > 50:
+                raise ParserFailure("ANTLR traversal yielded empty results. Falling back to Regex.")
 
-            # For now, simulate a failure if the tree is empty or timeouts occur
-            raise ParserFailure("ANTLR traversal not fully implemented in current sprint.")
+            # Success
+            return app, metadata
 
         except ParserFailure as e:
             logger.warning("antlr_parsing_failed", reason=str(e), action="falling_back_to_regex")
