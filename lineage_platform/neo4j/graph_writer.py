@@ -1,8 +1,9 @@
+import os
+import hashlib
 from neo4j import GraphDatabase
-from uuid import uuid4
 from datetime import datetime
 
-from lineage_platform.models.qlik_models import QlikViewApp
+from lineage_platform.models.qlik_models import QlikViewApp, SourceType
 
 
 class GraphWriter:
@@ -12,8 +13,13 @@ class GraphWriter:
     """
 
     def __init__(self):
+        uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+        user = os.getenv("NEO4J_USERNAME", "neo4j")
+        password = os.getenv("NEO4J_PASSWORD", "password")
+        self.driver = GraphDatabase.driver(uri, auth=(user, password))
 
-        self.driver = GraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", "password"))
+    def _generate_id(self, canonical_str: str) -> str:
+        return hashlib.sha256(canonical_str.encode()).hexdigest()[:16]
 
     # =====================================================
     # MAIN WRITE METHOD
@@ -42,7 +48,7 @@ class GraphWriter:
                     )
                 """,
                 app_name=app.app_name,
-                id=str(uuid4()),
+                id=self._generate_id(f"qlik_script::{app.app_name}"),
                 created_at=str(datetime.utcnow()),
             )
 
@@ -71,12 +77,12 @@ class GraphWriter:
                         )
                     """,
                     table_name=load.table_name,
-                    id=str(uuid4()),
+                    id=self._generate_id(f"qlik_table::{app.app_name}.{load.table_name}"),
                     created_at=str(datetime.utcnow()),
                 )
 
                 # ---------------------------------------------
-                # USES_TABLE
+                # CONTAINS_TABLE
                 # ---------------------------------------------
 
                 session.run(
@@ -89,7 +95,7 @@ class GraphWriter:
                         name: $table_name
                     })
 
-                    MERGE (q)-[:USES_TABLE]->(t)
+                    MERGE (q)-[:CONTAINS_TABLE]->(t)
                     """,
                     app_name=app.app_name,
                     table_name=load.table_name,
@@ -100,43 +106,50 @@ class GraphWriter:
                 # ---------------------------------------------
 
                 if load.source_table:
+                    if load.source_type == SourceType.RESIDENT or load.source_type == "RESIDENT":
+                        session.run(
+                            """
+                            MATCH (t:QlikTable {name: $table_name})
+                            MATCH (s:QlikTable {name: $source_table})
+                            MERGE (t)-[:DERIVES_FROM_TABLE {via: 'resident'}]->(s)
+                            """,
+                            table_name=load.table_name,
+                            source_table=load.source_table,
+                        )
+                    else:
+                        fqn = f"UNKNOWN.UNKNOWN.{load.source_table}"
+                        session.run(
+                            """
+                            MERGE (s:Table {
+                                name: $source_table
+                            })
 
-                    session.run(
-                        """
-                        MERGE (s:Table {
-                            name: $source_table
-                        })
+                            SET s.id = coalesce(s.id, $id),
+                                s.fully_qualified_name = coalesce(s.fully_qualified_name, $fqn),
+                                s.type = 'source_table',
+                                s.created_at = coalesce(s.created_at, $created_at)
+                            """,
+                            source_table=load.source_table,
+                            fqn=fqn,
+                            id=self._generate_id(f"table::{fqn}"),
+                            created_at=str(datetime.utcnow()),
+                        )
 
-                        SET s.id = coalesce(
-                            s.id,
-                            $id
-                        ),
-                            s.type = 'source_table',
-                            s.created_at = coalesce(
-                                s.created_at,
-                                $created_at
-                            )
-                        """,
-                        source_table=load.source_table,
-                        id=str(uuid4()),
-                        created_at=str(datetime.utcnow()),
-                    )
+                        session.run(
+                            """
+                            MATCH (t:QlikTable {
+                                name: $table_name
+                            })
 
-                    session.run(
-                        """
-                        MATCH (t:QlikTable {
-                            name: $table_name
-                        })
+                            MATCH (s:Table {
+                                name: $source_table
+                            })
 
-                        MATCH (s:Table {
-                            name: $source_table
-                        })
-
-                        MERGE (t)-[:READS_FROM]->(s)
-                        """,
-                        table_name=load.table_name,
-                        source_table=load.source_table,
-                    )
+                            MERGE (t)-[:LOADS_FROM_TABLE]->(s)
+                            """,
+                            table_name=load.table_name,
+                            source_table=load.source_table,
+                        )
 
                 # ---------------------------------------------
                 # Attributes
@@ -150,34 +163,16 @@ class GraphWriter:
                             name: $field_name
                         })
 
-                        SET a.id = coalesce(
-                            a.id,
-                            $id
-                        ),
-                            a.role = coalesce(
-                                a.role,
-                                'dimension'
-                            ),
-                            a.datatype = coalesce(
-                                a.datatype,
-                                'string'
-                            ),
-                            a.is_calculated = coalesce(
-                                a.is_calculated,
-                                false
-                            ),
-                            a.formula = coalesce(
-                                a.formula,
-                                ''
-                            ),
+                        SET a.id = coalesce(a.id, $id),
+                            a.role = coalesce(a.role, 'dimension'),
+                            a.datatype = coalesce(a.datatype, 'string'),
+                            a.is_calculated = coalesce(a.is_calculated, false),
+                            a.formula = coalesce(a.formula, ''),
                             a.source_system = 'QlikView',
-                            a.created_at = coalesce(
-                                a.created_at,
-                                $created_at
-                            )
+                            a.created_at = coalesce(a.created_at, $created_at)
                         """,
                         field_name=field,
-                        id=str(uuid4()),
+                        id=self._generate_id(f"attribute::{app.app_name}.{load.table_name}.{field}"),
                         created_at=str(datetime.utcnow()),
                     )
 
@@ -191,7 +186,7 @@ class GraphWriter:
                             name: $field_name
                         })
 
-                        MERGE (t)-[:HAS_ATTRIBUTE]->(a)
+                        MERGE (t)-[:HAS_FIELD]->(a)
                         """,
                         table_name=load.table_name,
                         field_name=field,
@@ -216,23 +211,17 @@ class GraphWriter:
                         name: $field_name
                     })
 
-                    SET a.id = coalesce(
-                        a.id,
-                        $id
-                    ),
+                    SET a.id = coalesce(a.id, $id),
                         a.is_calculated = true,
                         a.formula = $formula,
                         a.role = 'measure',
                         a.datatype = 'decimal',
                         a.source_system = 'QlikView',
-                        a.created_at = coalesce(
-                            a.created_at,
-                            $created_at
-                        )
+                        a.created_at = coalesce(a.created_at, $created_at)
                     """,
                     field_name=synth_field.name,
                     formula=synth_field.formula or "",
-                    id=str(uuid4()),
+                    id=self._generate_id(f"attribute::{app.app_name}.SYNTHETIC.{synth_field.name}"),
                     created_at=str(datetime.utcnow()),
                 )
 
@@ -248,13 +237,10 @@ class GraphWriter:
                             name: $source_field
                         })
 
-                        SET s.id = coalesce(
-                            s.id,
-                            $id
-                        )
+                        SET s.id = coalesce(s.id, $id)
                         """,
                         source_field=source_field,
-                        id=str(uuid4()),
+                        id=self._generate_id(f"attribute::{app.app_name}.SYNTHETIC.{source_field}"),
                     )
 
                     session.run(
@@ -267,7 +253,7 @@ class GraphWriter:
                             name: $source_field
                         })
 
-                        MERGE (a)-[:DERIVED_FROM]->(s)
+                        MERGE (a)-[:DERIVES_FROM]->(s)
                         """,
                         field_name=synth_field.name,
                         source_field=source_field,
@@ -285,13 +271,10 @@ class GraphWriter:
                         name: $source_table
                     })
 
-                    SET a.id = coalesce(
-                        a.id,
-                        $id
-                    )
+                    SET a.id = coalesce(a.id, $id)
                     """,
                     source_table=join.source_table,
-                    id=str(uuid4()),
+                    id=self._generate_id(f"qlik_table::{app.app_name}.{join.source_table}"),
                 )
 
                 session.run(
@@ -300,13 +283,10 @@ class GraphWriter:
                         name: $target_table
                     })
 
-                    SET b.id = coalesce(
-                        b.id,
-                        $id
-                    )
+                    SET b.id = coalesce(b.id, $id)
                     """,
                     target_table=join.target_table,
-                    id=str(uuid4()),
+                    id=self._generate_id(f"qlik_table::{app.app_name}.{join.target_table}"),
                 )
 
                 session.run(
@@ -319,18 +299,42 @@ class GraphWriter:
                         name: $target_table
                     })
 
-                    MERGE (a)-[r:JOINED_WITH]->(b)
+                    MERGE (a)-[r:JOINS_WITH]->(b)
 
                     SET r.type = $join_type,
-                        r.created_at = coalesce(
-                            r.created_at,
-                            $created_at
-                        )
+                        r.created_at = coalesce(r.created_at, $created_at)
                     """,
                     source_table=join.source_table,
                     target_table=join.target_table,
                     join_type=join.join_type,
                     created_at=str(datetime.utcnow()),
+                )
+
+            # =================================================
+            # CONNECTIONS
+            # =================================================
+
+            for conn in app.connections:
+                session.run(
+                    """
+                    MERGE (c:Connection {name: $conn_name})
+                    SET c.id = coalesce(c.id, $id),
+                        c.connection_string = coalesce(c.connection_string, $conn_string),
+                        c.created_at = coalesce(c.created_at, $created_at)
+                    """,
+                    conn_name=conn.connection_name,
+                    conn_string=conn.connection_string,
+                    id=self._generate_id(f"connection::{app.app_name}.{conn.connection_name}"),
+                    created_at=str(datetime.utcnow()),
+                )
+                session.run(
+                    """
+                    MATCH (q:QlikScript {name: $app_name})
+                    MATCH (c:Connection {name: $conn_name})
+                    MERGE (q)-[:USES_CONNECTION]->(c)
+                    """,
+                    app_name=app.app_name,
+                    conn_name=conn.connection_name,
                 )
 
     # =====================================================
@@ -342,9 +346,6 @@ class GraphWriter:
         Properly close Neo4j driver.
         Prevents driver cleanup warnings.
         """
-
         if self.driver:
-
             self.driver.close()
-
             self.driver = None
