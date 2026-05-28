@@ -82,6 +82,20 @@ class BatchGraphWriter:
                             n.created_at = coalesce(n.created_at, $now)
                     """, fields=[f.__dict__ for f in graph.fields], now=now)
 
+                # 3.5 Write TransformationNodes
+                if graph.transformations:
+                    session.run("""
+                        UNWIND $transforms AS t
+                        MERGE (n:Transformation {id: t.id})
+                        SET n.expression = t.expression,
+                            n.transformation_type = t.transformation_type,
+                            n.source_parser = t.source_parser,
+                            n.lineage_depth = t.lineage_depth,
+                            n.deterministic = t.deterministic,
+                            n.aggregate = t.aggregate,
+                            n.created_at = coalesce(n.created_at, $now)
+                    """, transforms=[t.__dict__ for t in graph.transformations], now=now)
+
                 # 4. Write Dependency Edges
                 if graph.dependency_edges:
                     session.run("""

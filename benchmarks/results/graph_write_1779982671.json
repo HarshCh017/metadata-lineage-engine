@@ -1,0 +1,8 @@
+{
+  "timestamp": "2026-05-28T21:07:51.866263",
+  "benchmark": "neo4j_write",
+  "num_nodes": 5000,
+  "normalization_seconds": 0.0018584728240966797,
+  "batch_write_seconds": 62.51372408866882,
+  "throughput_nodes_sec": 79.98243702307755
+}
