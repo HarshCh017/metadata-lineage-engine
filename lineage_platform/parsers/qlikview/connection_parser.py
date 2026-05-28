@@ -9,7 +9,7 @@ class ConnectionParser:
     Extracts QlikView connection metadata.
     """
 
-    CONNECTION_PATTERN = re.compile(r"LIB CONNECT TO\s+'([^']+)'", re.IGNORECASE)
+    CONNECTION_PATTERN = re.compile(r"(?:LIB|ODBC|OLEDB|CUSTOM)\s+CONNECT\s+TO\s+['\"\[]?([^'\"\];]+)['\"\]]?", re.IGNORECASE)
 
     @classmethod
     def extract_connections(cls, content: str) -> List[QVSConnection]:

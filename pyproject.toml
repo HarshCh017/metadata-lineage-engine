@@ -1,0 +1,8 @@
+[tool.poetry]
+name = "metadata-lineage-engine"
+version = "2.1.0"
+description = "Enterprise Data Lineage Engine"
+authors = ["Harsh Chauhan <harsh.chauhan2@ibm.com>"]
+
+[tool.black]
+line-length = 120

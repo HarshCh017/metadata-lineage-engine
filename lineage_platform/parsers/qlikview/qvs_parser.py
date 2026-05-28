@@ -12,6 +12,10 @@ from lineage_platform.parsers.qlikview.synthetic_field_parser import SyntheticFi
 
 from lineage_platform.parsers.qlikview.connection_parser import ConnectionParser
 
+from lineage_platform.parsers.qlikview.comment_cleaner import CommentCleaner
+from lineage_platform.parsers.qlikview.variable_parser import VariableParser
+from lineage_platform.parsers.qlikview.include_resolver import IncludeResolver
+
 from lineage_platform.parsers.qlikview.sql_parser import SQLParser
 
 
@@ -40,10 +44,23 @@ class QVSParser:
             content = f.read()
 
         # -------------------------------------------------
+        # Resolve includes
+        # -------------------------------------------------
+
+        content = IncludeResolver.resolve_includes(content, path)
+
+        # -------------------------------------------------
         # Clean comments
         # -------------------------------------------------
 
-        content = self.remove_comments(content)
+        content = CommentCleaner.clean_comments(content)
+
+        # -------------------------------------------------
+        # Extract variables and expand macros
+        # -------------------------------------------------
+
+        variables = VariableParser.extract_variables(content)
+        content = VariableParser.expand_macros(content, variables)
 
         # -------------------------------------------------
         # Create app
@@ -96,35 +113,6 @@ class QVSParser:
             app.fields.extend(synthetic_fields)
 
         return app
-
-    # =====================================================
-    # REMOVE COMMENTS
-    # =====================================================
-
-    def remove_comments(self, content: str) -> str:
-
-        # -------------------------------------------------
-        # Remove block comments
-        # -------------------------------------------------
-
-        content = re.sub(r"/\*.*?\*/", "", content, flags=re.DOTALL)
-
-        # -------------------------------------------------
-        # Remove single-line comments
-        # -------------------------------------------------
-
-        cleaned_lines = []
-
-        for line in content.splitlines():
-
-            stripped = line.strip()
-
-            if stripped.startswith("//"):
-                continue
-
-            cleaned_lines.append(line)
-
-        return "\n".join(cleaned_lines)
 
     # =====================================================
     # ENTERPRISE LOAD BLOCK EXTRACTION

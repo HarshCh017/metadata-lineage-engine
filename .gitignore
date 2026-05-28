@@ -24,6 +24,10 @@ venv/
 # OS Files
 .DS_Store
 Thumbs.db
+._*
+
+# Testing
+.coverage
 
 __pycache__/
 *.pyc

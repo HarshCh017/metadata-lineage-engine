@@ -12,7 +12,9 @@ class CommentCleaner:
 
     SINGLE_LINE_PATTERN = re.compile(r"//.*?$", re.MULTILINE)
 
-    MULTI_LINE_PATTERN = re.compile(r"/\\*.*?\\*/", re.DOTALL)
+    MULTI_LINE_PATTERN = re.compile(r"/\*.*?\*/", re.DOTALL)
+
+    REM_PATTERN = re.compile(r"\bREM\b.*?;", re.IGNORECASE | re.DOTALL)
 
     @staticmethod
     def clean_comments(script_content: str) -> str:
@@ -22,6 +24,12 @@ class CommentCleaner:
         # ----------------------------------------------
 
         script_content = CommentCleaner.MULTI_LINE_PATTERN.sub("", script_content)
+
+        # ----------------------------------------------
+        # Remove REM comments
+        # ----------------------------------------------
+
+        script_content = CommentCleaner.REM_PATTERN.sub("", script_content)
 
         # ----------------------------------------------
         # Remove single-line comments
