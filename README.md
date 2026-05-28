@@ -2,11 +2,18 @@
 
 [![Run Tests](https://github.com/HarshCh017/metadata-lineage-engine/actions/workflows/tests.yml/badge.svg)](https://github.com/HarshCh017/metadata-lineage-engine/actions/workflows/tests.yml)
 
+## Test Coverage
 
+```bash
+pytest --cov=lineage_platform --cov-report=html
 
 Enterprise-grade metadata lineage platform for parsing QlikView scripts and building attribute-level lineage graphs using Neo4j, FastAPI, and automated lineage extraction.
 
 ---
+
+## Neo4j Lineage Graph
+
+![Lineage Graph](docs/images/neo4j-lineage.png)
 
 # Badges
 
