@@ -1,16 +1,17 @@
 import structlog
-from typing import Optional, Dict, Any, List
+from typing import Optional
 from lineage_platform.neo4j.repository import LineageRepository
 from lineage_platform.models.snapshot import SnapshotContext
 
 logger = structlog.get_logger()
+
 
 class GraphService:
     """
     Business layer for graph query semantics.
     Abstracts the LineageRepository logic away from APIs and MCP.
     """
-    
+
     def __init__(self, repository: Optional[LineageRepository] = None):
         self.repo = repository or LineageRepository()
 
@@ -31,7 +32,7 @@ class GraphService:
             lineage = []
             for r in result:
                 lineage.append(f"[{r['dist']} hops] {r['upstream_fqn']} -> {r['target_fqn']}")
-            
+
             if not lineage:
                 return f"No upstream lineage found for '{table_fqn}' within depth {depth}."
             return f"Lineage for {table_fqn}:\\n" + "\\n".join(lineage)
@@ -46,7 +47,7 @@ class GraphService:
             for r in result:
                 fields_str = ", ".join(r['fields'])
                 metrics.append(f"Sheet: {r['sheet']} | Chart: {r['chart']} | Fields: {fields_str}")
-            
+
             if not metrics:
                 return f"No metrics/charts found for dashboard containing '{dashboard_name}'."
             return "Dashboard Metrics:\\n" + "\\n".join(metrics)
@@ -60,13 +61,13 @@ class GraphService:
             subs = []
             for r in result:
                 subs.append(f"Script: {r['script']} | Subroutine: {r['subroutine']}")
-            
+
             if not subs:
                 return f"No subroutines found for script containing '{script_name}'."
             return "Script Subroutines:\\n" + "\\n".join(subs)
         except Exception as e:
             logger.error("graph_service_script_error", error=str(e))
             return f"Error fetching subroutines: {str(e)}"
-            
+
     def close(self):
         self.repo.close()

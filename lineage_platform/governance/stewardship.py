@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
+
 @dataclass
 class StewardshipInfo:
     """
@@ -12,11 +13,13 @@ class StewardshipInfo:
     governance_contact: str
     escalation_group: str
     audit_scope: str
-    
+
+
 class StewardshipManager:
     """
     Resolves domain ownership metadata for specific namespaces.
     """
+
     def __init__(self):
         # Mock directory
         self.directory = {
@@ -28,6 +31,6 @@ class StewardshipManager:
                 audit_scope="SOX-CRITICAL"
             )
         }
-        
+
     def get_stewardship(self, namespace_id: str) -> Optional[StewardshipInfo]:
         return self.directory.get(namespace_id)

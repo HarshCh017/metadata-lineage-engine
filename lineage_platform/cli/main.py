@@ -68,7 +68,7 @@ def main():
 
                 print("Graph write successful")
 
-            except Exception as file_error:
+            except Exception:
 
                 print(f"FAILED FILE: {file_path}")
 

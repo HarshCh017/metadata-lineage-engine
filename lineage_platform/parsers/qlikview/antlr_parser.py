@@ -1,14 +1,14 @@
+from enum import Enum
 import time
 import structlog
 from dataclasses import dataclass
-from typing import Tuple, Any
+from typing import Tuple
 
 from lineage_platform.parsers.qlikview.qvs_parser import QVSParser
 from lineage_platform.models.qlik_models import QlikViewApp
 
 logger = structlog.get_logger()
 
-from enum import Enum
 
 class ParserFailureType(Enum):
     SYNTAX_ERROR = "SYNTAX_ERROR"
@@ -18,6 +18,7 @@ class ParserFailureType(Enum):
     AST_OVERFLOW = "AST_OVERFLOW"
     TIMEOUT = "TIMEOUT"
     UNKNOWN = "UNKNOWN"
+
 
 @dataclass
 class ParseResultMetadata:
@@ -33,15 +34,17 @@ class ParseResultMetadata:
     transformation_confidence: float = 1.0
     macro_resolution_confidence: float = 1.0
     temporal_confidence: float = 1.0
-    
+
     @property
     def aggregate_confidence(self) -> float:
-        return (self.syntax_confidence + self.semantic_confidence + 
-                self.transformation_confidence + self.macro_resolution_confidence + 
-                self.temporal_confidence) / 5.0
+        return (self.syntax_confidence + self.semantic_confidence
+                + self.transformation_confidence + self.macro_resolution_confidence
+                + self.temporal_confidence) / 5.0
+
 
 class ParserFailure(Exception):
     pass
+
 
 class ANTLRQVSParser:
     """
@@ -83,10 +86,10 @@ class ANTLRQVSParser:
             stream = CommonTokenStream(lexer)
             parser = QlikViewParser(stream)
             tree = parser.script()
-            
+
             visitor = QlikViewASTVisitor()
             app = visitor.visit(tree)
-            
+
             # If the tree visit yielded no loads and no variables but we had script content, fallback
             if len(app.loads) == 0 and len(app.variables) == 0 and len(content.strip()) > 50:
                 raise ParserFailure("ANTLR traversal yielded empty results. Falling back to Regex.")
@@ -96,34 +99,34 @@ class ANTLRQVSParser:
 
         except ParserFailure as e:
             logger.warning("antlr_parsing_failed", reason=str(e), action="falling_back_to_regex")
-            
+
             from lineage_platform.parsers.recovery.recovery_engine import ParserRecoveryEngine
             recovery_engine = ParserRecoveryEngine()
             prov = recovery_engine.attempt_recovery(e, content)
-            
+
             metadata.fallback_triggered = True
             metadata.parser_engine = prov.strategy_used.value
             metadata.errors.append(str(e))
             metadata.syntax_confidence -= prov.confidence_penalty
-            
+
             # Execute emergency regex parser
             script_node = self.regex_parser.parse(content=content)
 
         except Exception as e:
             # Catch memory overflows or deep recursion limits
             logger.error("critical_parser_failure", error=str(e))
-            
+
             from lineage_platform.parsers.recovery.recovery_engine import ParserRecoveryEngine
             recovery_engine = ParserRecoveryEngine()
             prov = recovery_engine.attempt_recovery(e, content)
-            
+
             metadata.fallback_triggered = True
             metadata.parser_engine = prov.strategy_used.value
             metadata.errors.append(f"Critical overflow: {str(e)}")
             metadata.syntax_confidence -= prov.confidence_penalty
-            
+
             script_node = self.regex_parser.parse(content=content)
 
         metadata.parse_duration_ms = (time.time() - start_time) * 1000
-        
+
         return script_node, metadata

@@ -1,8 +1,8 @@
 import structlog
-from typing import Optional, List, Dict, Any
-from lineage_platform.models.qlik_models import QlikViewApp, QVSLoad, QlikField, QlikVariable
+from lineage_platform.models.qlik_models import QlikViewApp, QVSLoad
 
 logger = structlog.get_logger()
+
 
 class QlikViewASTVisitor:
     """
@@ -25,10 +25,10 @@ class QlikViewASTVisitor:
             for child in tree.children:
                 self.visit_node(child)
         return self.app
-        
+
     def visit_node(self, node):
         node_type = type(node).__name__
-        
+
         if "LoadStatementContext" in node_type:
             self.visit_LoadStatement(node)
         elif "SetStatementContext" in node_type:
@@ -42,14 +42,14 @@ class QlikViewASTVisitor:
         Extract deterministic tables and fields.
         """
         logger.debug("visitor_load_statement", ast_node_type=type(ctx).__name__)
-        
+
         # In a fully generated parser, this looks like:
         # source = ctx.source().getText()
         # fields = [f.getText() for f in ctx.fieldList().field()]
-        
+
         # Mock payload matching a successful parse
         load = QVSLoad(
-            target_table="UnknownTable",
+            table_name="UnknownTable",
             source_table="UnknownSource",
             fields=[]
         )
@@ -60,7 +60,6 @@ class QlikViewASTVisitor:
         Extract SET / LET variables.
         """
         logger.debug("visitor_set_statement", ast_node_type=type(ctx).__name__)
-        
+
         # Example extraction
-        var = QlikVariable(name="UnknownVar", expression="")
-        self.app.variables.append(var)
+        self.app.variables["UnknownVar"] = ""

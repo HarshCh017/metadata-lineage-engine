@@ -37,7 +37,7 @@ class QVSParser:
 
     def parse(self, file_path: Optional[str] = None, *, content: Optional[str] = None) -> QlikViewApp:
         path = Path(file_path) if file_path else None
-        
+
         if content is None:
             if not path:
                 raise ValueError("Must provide either content or file_path")
@@ -66,19 +66,19 @@ class QVSParser:
         # -------------------------------------------------
 
         content = CommentCleaner.clean_comments(content)
-        
+
         # -------------------------------------------------
         # Parse DROP TABLE and DROP FIELD
         # -------------------------------------------------
-        
+
         dropped_tables = []
         for match in re.finditer(r"DROP\s+TABLE\s+([A-Za-z0-9_]+)", content, re.IGNORECASE):
             dropped_tables.append(match.group(1).strip())
 
         dropped_fields = []
         for match in re.finditer(r"DROP\s+FIELDS?\s+([A-Za-z0-9_,\s]+)", content, re.IGNORECASE):
-            for f in match.group(1).split(","):
-                dropped_fields.append(f.strip())
+            for field_name in match.group(1).split(","):
+                dropped_fields.append(field_name.strip())
 
         # -------------------------------------------------
         # Extract subroutines (cache bodies for CALL inlining)
@@ -86,13 +86,14 @@ class QVSParser:
 
         subroutines = []
         subroutine_bodies = {}
+
         def replace_sub(match):
             name = match.group(1).strip()
             body = match.group(2).strip()
             subroutines.append(QVSSubroutine(name=name, body=body))
             subroutine_bodies[name.upper()] = body
             return ""
-            
+
         content = re.sub(r"^\s*SUB\s+([A-Za-z0-9_]+)(.*?)\bEND\s+SUB\b", replace_sub, content, flags=re.IGNORECASE | re.DOTALL | re.MULTILINE)
 
         # -------------------------------------------------
@@ -355,7 +356,7 @@ class QVSParser:
             dialect = None
             if app and app.connections:
                 last_conn = app.connections[-1]
-                conn_str = (last_conn.connection_name + " " + last_conn.connection_string).lower()
+                conn_str = (last_conn.connection_name + " " + str(last_conn.connection_string or "")).lower()
                 if "oracle" in conn_str:
                     dialect = "oracle"
                 elif "teradata" in conn_str:

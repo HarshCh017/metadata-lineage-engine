@@ -4,6 +4,7 @@ from lineage_platform.governance.query_engine import QueryGovernanceEngine
 from lineage_platform.models.snapshot import SnapshotContext
 from lineage_platform.errors.failure_taxonomy import SnapshotReplayFailure
 
+
 class ReplayEngine:
     """
     Historical Lineage Replay Engine.
@@ -19,21 +20,21 @@ class ReplayEngine:
         Reconstructs the global lineage state as of the exact ISO timestamp.
         """
         snapshot = SnapshotContext(as_of_timestamp=as_of)
-        
+
         try:
             state = self.governance_engine.get_snapshot_state(snapshot)
             nodes = state.get("nodes", [])
-            
+
             if self.policy_engine:
                 # Mask BEFORE hash generation
                 nodes = self.policy_engine.apply_masking(nodes)
-                
+
             state["nodes"] = nodes
-            
+
             # Generate deterministic replay manifest hash
             content_str = str(nodes)
             manifest_hash = hashlib.sha256(content_str.encode()).hexdigest()
-            
+
             state["manifest_hash"] = manifest_hash
             state["replay_timestamp"] = as_of
             return state
@@ -46,13 +47,13 @@ class ReplayEngine:
         """
         v1 = self.reconstruct_lineage(from_version)
         v2 = self.reconstruct_lineage(to_version)
-        
+
         # Drift calculation logic goes here
-        drift_rate = 0.0 # Mock calculation
-        
+        drift_rate = 0.0  # Mock calculation
+
         from lineage_platform.observability.telemetry import TelemetryManager
         TelemetryManager.LINEAGE_DRIFT_RATE.observe(drift_rate)
-        
+
         return {
             "from_hash": v1["manifest_hash"],
             "to_hash": v2["manifest_hash"],

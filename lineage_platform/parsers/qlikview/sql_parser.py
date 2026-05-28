@@ -120,7 +120,7 @@ class SQLParser:
     # =====================================================
 
     @staticmethod
-    def extract_sql_tables(sql_query: str, dialect: str = None):
+    def extract_sql_tables(sql_query: str, dialect: str | None = None):
 
         tables = []
         columns = {}
@@ -195,12 +195,12 @@ class SQLParser:
 
         seen = set()
 
-        for table in tables:
+        for tbl in tables:
 
-            if table not in seen:
+            if tbl not in seen:
 
-                unique_tables.append(table)
+                unique_tables.append(tbl)
 
-                seen.add(table)
+                seen.add(tbl)
 
         return unique_tables, columns, lineage_partial

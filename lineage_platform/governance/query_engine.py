@@ -8,6 +8,7 @@ import time
 
 logger = structlog.get_logger()
 
+
 class QueryGovernanceEngine:
     """
     Central Governance Layer for Metadata Lineage access.
@@ -41,19 +42,19 @@ class QueryGovernanceEngine:
     def get_upstream_lineage(self, target_fqn: str, depth: int = 5, snapshot: Optional[SnapshotContext] = None) -> List[Dict[str, Any]]:
         self._enforce_budget(depth)
         start_time = time.time()
-        
+
         # Use repository primitive directly, preventing raw Cypher injection
-        result = self.repository.get_table_lineage(target_fqn, direction="upstream", max_depth=depth, snapshot=snapshot)
-        
+        result = self.repository.get_table_lineage(target_fqn, depth=depth, snapshot=snapshot)
+
         TelemetryManager.TEMPORAL_QUERY_LATENCY.observe((time.time() - start_time) * 1000)
         return result
 
     def get_downstream_lineage(self, target_fqn: str, depth: int = 5, snapshot: Optional[SnapshotContext] = None) -> List[Dict[str, Any]]:
         self._enforce_budget(depth)
         start_time = time.time()
-        
-        result = self.repository.get_table_lineage(target_fqn, direction="downstream", max_depth=depth, snapshot=snapshot)
-        
+
+        result = self.repository.get_table_lineage(target_fqn, depth=depth, snapshot=snapshot)
+
         TelemetryManager.TEMPORAL_QUERY_LATENCY.observe((time.time() - start_time) * 1000)
         return result
 

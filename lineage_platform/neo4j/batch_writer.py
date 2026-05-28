@@ -6,6 +6,7 @@ from lineage_platform.models.intermediate import GraphModel
 
 logger = structlog.get_logger()
 
+
 class BatchGraphWriter:
     """
     Enterprise-scale batch writer for Neo4j.
@@ -35,10 +36,10 @@ class BatchGraphWriter:
                             n.process_type = p.process_type,
                             n.source_system = p.source_system,
                             n.created_at = coalesce(n.created_at, $now)
-                        // Dynamic properties not fully supported by UNWIND directly 
+                        // Dynamic properties not fully supported by UNWIND directly
                         // without apoc, but we map explicit fields here
                     """, processes=[p.__dict__ for p in graph.processes], now=now)
-                    
+
                     # Backwards compatibility labels for Qlik
                     session.run("""
                         MATCH (n:Process {process_type: 'qlik_script'})
@@ -60,7 +61,7 @@ class BatchGraphWriter:
                             n.source_system = d.source_system,
                             n.created_at = coalesce(n.created_at, $now)
                     """, datasets=[d.__dict__ for d in graph.datasets], now=now)
-                    
+
                     session.run("""
                         MATCH (n:Dataset {layer: 'transform', source_system: 'QlikView'})
                         SET n:QlikTable
@@ -117,7 +118,7 @@ class BatchGraphWriter:
                     """, edges=[e.__dict__ for e in graph.lineage_edges])
 
         except Exception as e:
-            # apoc.create.relationship requires APOC plugin. 
+            # apoc.create.relationship requires APOC plugin.
             # If not available, fallback to manual MATCH/MERGE for known edge types
             logger.warning("apoc_failed_falling_back_to_manual_edges", error=str(e))
             self._write_edges_manual(graph.dependency_edges, graph.lineage_edges)

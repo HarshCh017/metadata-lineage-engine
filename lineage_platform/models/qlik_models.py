@@ -28,6 +28,7 @@ class QVSChart:
     title: str
     fields: List[str] = field(default_factory=list)
 
+
 @dataclass
 class QVSSheet:
     sheet_id: str
@@ -37,6 +38,7 @@ class QVSSheet:
 # =========================================================
 # QVS SUBROUTINE MODEL
 # =========================================================
+
 
 @dataclass
 class QVSSubroutine:
@@ -79,13 +81,13 @@ class QVSLoad:
     source_table: Optional[str] = None
 
     sql_query: Optional[str] = None
-    
+
     sql_columns: dict = field(default_factory=dict)
 
     concatenates_to: Optional[str] = None
-    
+
     is_mapping_load: bool = False
-    
+
     lineage_partial: bool = False
 
 
@@ -150,7 +152,7 @@ class QlikViewApp:
     subroutines: List[QVSSubroutine] = field(default_factory=list)
 
     dropped_tables: List[str] = field(default_factory=list)
-    
+
     dropped_fields: List[str] = field(default_factory=list)
 
     variables: dict = field(default_factory=dict)

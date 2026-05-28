@@ -1,24 +1,21 @@
+from lineage_platform.neo4j.repository import LineageRepository
+from lineage_platform.parsers.qlikview.antlr_parser import ANTLRQVSParser
+import hashlib
+from lineage_platform.observability.telemetry import TelemetryManager
+from lineage_platform.core.normalization import SemanticNormalizer
+from lineage_platform.core.incremental import IncrementalProcessor
+from lineage_platform.neo4j.batch_writer import BatchGraphWriter
+from lineage_platform.models.adapters import QlikToIntermediateAdapter
+from lineage_platform.parsers.qlikview.qvw_parser import QVWParser
 import time
 from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel
 from pathlib import Path
 from typing import Optional, List
 import structlog
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Counter, REGISTRY
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 logger = structlog.get_logger()
-
-from lineage_platform.parsers.qlikview.qvs_parser import QVSParser
-from lineage_platform.parsers.qlikview.qvw_parser import QVWParser
-from lineage_platform.models.adapters import QlikToIntermediateAdapter
-from lineage_platform.neo4j.batch_writer import BatchGraphWriter
-from lineage_platform.core.incremental import IncrementalProcessor
-from lineage_platform.core.normalization import SemanticNormalizer
-from lineage_platform.observability.telemetry import TelemetryManager
-import hashlib
-from lineage_platform.parsers.qlikview.antlr_parser import ANTLRQVSParser
-from lineage_platform.neo4j.repository import LineageRepository
-
 
 
 router = APIRouter()
@@ -74,54 +71,54 @@ def parse_script(request: ParseRequest):
 
     # Determine unique process ID (using hash of file path for stability)
     process_id = f"process_{hashlib.md5(request.script_path.encode()).hexdigest()[:16]}"
-    
+
     # 1. Incremental Bypass Check
     repo = LineageRepository()
     incremental = IncrementalProcessor(repo.driver)
     hash_data = incremental.calculate_hash(content, dependencies=[])
-    
+
     if not request.overwrite and not incremental.has_changed(process_id, hash_data["composite_hash"]):
         logger.info("parse_script_skipped", script_path=request.script_path, reason="hash_match")
         return {"status": "skipped", "reason": "hash_match"}
-    
+
     # 2. Expire old graph components
     incremental.expire_script_subgraph(process_id)
 
     start_time = time.time()
-    warnings = []
+    warnings: List[str] = []
 
     try:
         parser = ANTLRQVSParser()
         with TelemetryManager.PARSE_LATENCY.time():
             app, metadata = parser.parse(content)
-        
+
         # Track parser telemetry
         if metadata.fallback_triggered:
             TelemetryManager.FALLBACK_RATES.inc()
             TelemetryManager.PARTIAL_RECOVERIES.inc()
-            TelemetryManager.PARSER_CONFIDENCE.observe(50.0) # Partial confidence
+            TelemetryManager.PARSER_CONFIDENCE.observe(50.0)  # Partial confidence
         else:
             TelemetryManager.PARSER_CONFIDENCE.observe(100.0)
 
         # Merge App details
         app.app_name = file_path.name
-        
+
         if request.xml_metadata_path:
             qvw_parser = QVWParser()
             app.sheets = qvw_parser.parse_metadata(request.xml_metadata_path)
 
         # Adapter + Normalization
         intermediate_graph = QlikToIntermediateAdapter.transform(app)
-        
+
         # Add process node explicitly to link lineage back to this script
         from lineage_platform.models.intermediate import ProcessNode
         p_node = ProcessNode(id=process_id, name=file_path.name, properties={"composite_hash": hash_data["composite_hash"]})
         intermediate_graph.processes.append(p_node)
-        
+
         before_nodes = len(intermediate_graph.fields)
         intermediate_graph = SemanticNormalizer.normalize(intermediate_graph)
         after_nodes = len(intermediate_graph.fields)
-        
+
         TelemetryManager.NORMALIZATION_MUTATIONS.inc(before_nodes - after_nodes)
 
         # Batch Write

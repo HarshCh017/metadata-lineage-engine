@@ -1,15 +1,15 @@
-from typing import List, Dict
 from lineage_platform.models.qlik_models import QlikViewApp, SourceType
 from lineage_platform.models.intermediate import (
     GraphModel, DatasetNode, FieldNode, ProcessNode, LineageEdge, DependencyEdge
 )
 from lineage_platform.core.hashing import generate_deterministic_id
 
+
 class QlikToIntermediateAdapter:
     """
     Transforms the QlikViewApp model into the generic Intermediate Metadata Model.
     """
-    
+
     @staticmethod
     def _generate_id(canonical_str: str) -> str:
         return generate_deterministic_id(canonical_str)
@@ -17,7 +17,7 @@ class QlikToIntermediateAdapter:
     @staticmethod
     def transform(app: QlikViewApp) -> GraphModel:
         graph = GraphModel()
-        
+
         # 1. Process Node (Qlik Script)
         script_id = QlikToIntermediateAdapter._generate_id(f"qlik_script::{app.app_name}")
         script_node = ProcessNode(
@@ -28,7 +28,7 @@ class QlikToIntermediateAdapter:
             properties={"type": "qlik_script"}
         )
         graph.processes.append(script_node)
-        
+
         # 2. Process Subroutines
         for sub in app.subroutines:
             sub_id = QlikToIntermediateAdapter._generate_id(f"subroutine::{app.app_name}.{sub.name}")
@@ -57,13 +57,13 @@ class QlikToIntermediateAdapter:
                 properties={"is_mapping_load": load.is_mapping_load, "lineage_partial": load.lineage_partial}
             )
             graph.datasets.append(table_node)
-            
+
             graph.dependency_edges.append(DependencyEdge(
                 source_id=script_id,
                 target_id=table_id,
                 edge_type="CONTAINS_TABLE"
             ))
-            
+
             # Fields for this table
             for field in load.fields:
                 field_id = QlikToIntermediateAdapter._generate_id(f"attribute::{app.app_name}.{load.table_name}.{field}")
@@ -80,7 +80,7 @@ class QlikToIntermediateAdapter:
                     target_id=field_id,
                     edge_type="HAS_FIELD"
                 ))
-                
+
             # Source Table Mapping
             if load.source_table:
                 if load.source_type == SourceType.RESIDENT or load.source_type == "RESIDENT":
@@ -102,24 +102,24 @@ class QlikToIntermediateAdapter:
                         if last_conn.server:
                             schema = last_conn.server
                     fqn = f"{database}.{schema}.{load.source_table}"
-                    
+
                     src_table_id = QlikToIntermediateAdapter._generate_id(f"table::{fqn}")
                     src_node = DatasetNode(
                         id=src_table_id,
                         name=load.source_table,
                         fully_qualified_name=fqn,
                         layer="source",
-                        source_system="UNKNOWN" # Physical
+                        source_system="UNKNOWN"  # Physical
                     )
                     # We might add duplicates if multiple loads use the same table, graph writer will merge by ID
                     graph.datasets.append(src_node)
-                    
+
                     graph.lineage_edges.append(LineageEdge(
                         source_id=table_id,
                         target_id=src_table_id,
                         edge_type="LOADS_FROM_TABLE"
                     ))
-                    
+
                     # Physical Columns lineage
                     for field in load.fields:
                         if field in load.sql_columns:
@@ -136,7 +136,7 @@ class QlikToIntermediateAdapter:
                                 target_id=pc_id,
                                 edge_type="HAS_COLUMN"
                             ))
-                            
+
                             qlik_field_id = QlikToIntermediateAdapter._generate_id(f"attribute::{app.app_name}.{load.table_name}.{field}")
                             graph.lineage_edges.append(LineageEdge(
                                 source_id=qlik_field_id,

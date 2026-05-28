@@ -6,19 +6,21 @@ from lineage_platform.models.snapshot import SnapshotContext
 
 logger = structlog.get_logger()
 
+
 class LineageRepository:
     """
     Data Access Layer (DAL) for the Lineage Engine.
     Abstracts raw Cypher and enforces temporal governance rules (e.g. is_active = true)
     automatically so that callers (like MCP AI) don't have to remember them.
     """
+
     def __init__(self):
         uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
         user = os.environ.get("NEO4J_USERNAME", "neo4j")
         password = os.environ.get("NEO4J_PASSWORD", "password")
         self.driver = GraphDatabase.driver(uri, auth=(user, password))
 
-    def _execute_read(self, cypher: str, parameters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
+    def _execute_read(self, cypher: str, parameters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         parameters = parameters or {}
         try:
             with self.driver.session(default_access_mode=READ_ACCESS) as session:
@@ -40,7 +42,7 @@ class LineageRepository:
         temp_predicate = self._inject_temporal_predicate(snapshot, "t")
         cypher = f"""
         MATCH (t:Table)
-        WHERE (toLower(t.name) CONTAINS toLower($query) 
+        WHERE (toLower(t.name) CONTAINS toLower($query)
            OR toLower(t.fully_qualified_name) CONTAINS toLower($query))
           AND {temp_predicate}
         RETURN t.name AS name, t.fully_qualified_name AS fqn
@@ -55,13 +57,13 @@ class LineageRepository:
         r_pred = self._inject_temporal_predicate(snapshot, "rel")
         u_pred = self._inject_temporal_predicate(snapshot, "upstream")
         t_pred = self._inject_temporal_predicate(snapshot, "target")
-        
+
         cypher = f"""
         MATCH p = (upstream:Table)-[r:DERIVES_FROM|LOADS_FROM_TABLE*1..$depth]->(target:Table {{fully_qualified_name: $fqn}})
         WHERE all(rel IN relationships(p) WHERE {r_pred})
           AND {u_pred}
           AND {t_pred}
-        RETURN upstream.fully_qualified_name AS upstream_fqn, 
+        RETURN upstream.fully_qualified_name AS upstream_fqn,
                target.fully_qualified_name AS target_fqn,
                length(p) AS dist
         ORDER BY dist ASC
@@ -76,7 +78,7 @@ class LineageRepository:
         r1_pred = self._inject_temporal_predicate(snapshot, "r1")
         r2_pred = self._inject_temporal_predicate(snapshot, "r2")
         s_pred = self._inject_temporal_predicate(snapshot, "s")
-        
+
         cypher = f"""
         MATCH (s:QlikSheet)-[r1:DISPLAYS_CHART]->(c:QlikChart)-[r2:USES_FIELD]->(f:Attribute)
         WHERE toLower(s.name) CONTAINS toLower($name)

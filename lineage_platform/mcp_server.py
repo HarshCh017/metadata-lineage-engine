@@ -9,8 +9,10 @@ logger = structlog.get_logger()
 # Initialize FastMCP Server
 mcp = FastMCP("Metadata Lineage Engine")
 
+
 def get_service():
     return GraphService()
+
 
 @mcp.tool()
 def search_tables(query: str, as_of_timestamp: Optional[str] = None, snapshot_id: Optional[str] = None) -> str:
@@ -25,6 +27,7 @@ def search_tables(query: str, as_of_timestamp: Optional[str] = None, snapshot_id
     finally:
         svc.close()
 
+
 @mcp.tool()
 def get_table_lineage(table_fqn: str, depth: int = 3, as_of_timestamp: Optional[str] = None, snapshot_id: Optional[str] = None) -> str:
     """
@@ -38,6 +41,7 @@ def get_table_lineage(table_fqn: str, depth: int = 3, as_of_timestamp: Optional[
     finally:
         svc.close()
 
+
 @mcp.tool()
 def get_dashboard_metrics(dashboard_name: str, as_of_timestamp: Optional[str] = None, snapshot_id: Optional[str] = None) -> str:
     """
@@ -50,6 +54,7 @@ def get_dashboard_metrics(dashboard_name: str, as_of_timestamp: Optional[str] = 
     finally:
         svc.close()
 
+
 @mcp.tool()
 def get_script_subroutines(script_name: str, as_of_timestamp: Optional[str] = None, snapshot_id: Optional[str] = None) -> str:
     """
@@ -61,6 +66,7 @@ def get_script_subroutines(script_name: str, as_of_timestamp: Optional[str] = No
         return svc.get_script_subroutines(script_name, snapshot=snapshot)
     finally:
         svc.close()
+
 
 if __name__ == "__main__":
     # Start the MCP server using standard I/O (required for Claude Desktop integration)

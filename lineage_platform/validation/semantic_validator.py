@@ -1,11 +1,12 @@
-from typing import List, Dict, Any, Optional
+from typing import List
 from dataclasses import dataclass, field
-from lineage_platform.models.graph_models import GraphModel, DatasetNode, FieldNode
+from lineage_platform.models.graph_models import GraphModel
 from lineage_platform.errors.failure_taxonomy import SemanticValidationFailure
 from lineage_platform.observability.telemetry import TelemetryManager
 import structlog
 
 logger = structlog.get_logger()
+
 
 @dataclass
 class ValidationResult:
@@ -14,6 +15,7 @@ class ValidationResult:
     warnings: List[str] = field(default_factory=list)
     confidence_score: float = 1.0
     lineage_gaps: List[str] = field(default_factory=list)
+
 
 class SemanticLineageValidator:
     """
@@ -40,7 +42,7 @@ class SemanticLineageValidator:
             self.result.warnings.append(str(e))
             TelemetryManager.SEMANTIC_VALIDATION_FAILURES.inc()
             logger.error("semantic_validation_failed", error=str(e))
-        
+
         return self.result
 
     def assert_field_derivation(self, target: str, expected_sources: List[str]) -> bool:
@@ -48,9 +50,9 @@ class SemanticLineageValidator:
         target_field = next((f for f in self.graph.fields if f.name == target), None)
         if not target_field:
             raise SemanticValidationFailure(f"Target field {target} not found in graph.", confidence_impact=0.2)
-        
+
         # Verify derivations (mocked logic for semantic validation scope)
-        actual_sources = [] # Would traverse relationships
+        actual_sources: List[str] = []  # Would traverse relationships
         missing = set(expected_sources) - set(actual_sources)
         if missing:
             raise SemanticValidationFailure(
@@ -73,7 +75,7 @@ class SemanticLineageValidator:
             if dataset.properties.get('lineage_partial', False):
                 unresolved_count += 1
                 self.result.lineage_gaps.append(f"Partial lineage detected in dataset: {dataset.name}")
-        
+
         if unresolved_count > 0:
             penalty = min(0.5, unresolved_count * 0.1)
             self.result.confidence_score -= penalty
@@ -88,12 +90,10 @@ class SemanticLineageValidator:
 
     def _validate_aggregation_correctness(self):
         """Validates GROUP BY / aggregation logical lineage constraints."""
-        pass # To be implemented in deeper iterations
+        pass  # To be implemented in deeper iterations
 
     def _validate_join_cardinality(self):
         """Validates JOIN / KEEP semantic cardinality."""
-        pass
 
     def _validate_macro_substitution(self):
         """Ensures variables and macros were expanded securely and completely."""
-        pass

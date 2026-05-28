@@ -12,6 +12,7 @@ from datetime import datetime
 # from graph persistence (Neo4j, OpenLineage, etc.).
 # =========================================================
 
+
 @dataclass
 class TemporalMixin:
     is_active: bool = field(default=True, kw_only=True)
@@ -19,10 +20,12 @@ class TemporalMixin:
     valid_to: Optional[datetime] = field(default=None, kw_only=True)
     lineage_version: Optional[str] = field(default=None, kw_only=True)
 
+
 @dataclass
 class ProvenanceMixin:
     created_by_parser: str = field(default="UNKNOWN", kw_only=True)
     ast_node_type: Optional[str] = field(default=None, kw_only=True)
+
 
 @dataclass
 class GovernanceMixin:
@@ -31,6 +34,7 @@ class GovernanceMixin:
     sensitivity_level: str = field(default="PUBLIC", kw_only=True)
     governance_scope: str = field(default="GLOBAL", kw_only=True)
     trust_zone: str = field(default="UNVERIFIED", kw_only=True)
+
 
 class TransformationType(str, Enum):
     AGGREGATION = "AGGREGATION"
@@ -45,6 +49,7 @@ class TransformationType(str, Enum):
     CONCAT = "CONCAT"
     UNKNOWN = "UNKNOWN"
 
+
 @dataclass
 class TransformationNode(TemporalMixin, ProvenanceMixin, GovernanceMixin):
     id: str
@@ -55,6 +60,7 @@ class TransformationNode(TemporalMixin, ProvenanceMixin, GovernanceMixin):
     deterministic: bool = True
     aggregate: bool = False
     properties: Dict[str, Any] = field(default_factory=dict)
+
 
 @dataclass
 class FieldNode(TemporalMixin, ProvenanceMixin):
@@ -67,37 +73,42 @@ class FieldNode(TemporalMixin, ProvenanceMixin):
     source_system: str = "UNKNOWN"
     properties: Dict[str, Any] = field(default_factory=dict)
 
+
 @dataclass
 class DatasetNode(TemporalMixin, ProvenanceMixin, GovernanceMixin):
     id: str
     name: str
     fully_qualified_name: str
-    layer: str = "source" # source, transform, presentation
+    layer: str = "source"  # source, transform, presentation
     source_system: str = "UNKNOWN"
     fields: List[FieldNode] = field(default_factory=list)
     properties: Dict[str, Any] = field(default_factory=dict)
+
 
 @dataclass
 class ProcessNode(TemporalMixin, ProvenanceMixin):
     id: str
     name: str
-    process_type: str = "script" # script, subroutine, query
+    process_type: str = "script"  # script, subroutine, query
     source_system: str = "UNKNOWN"
     properties: Dict[str, Any] = field(default_factory=dict)
+
 
 @dataclass
 class LineageEdge(TemporalMixin, ProvenanceMixin, GovernanceMixin):
     source_id: str
     target_id: str
-    edge_type: str = "DERIVES_FROM" # DERIVES_FROM, LOADS_FROM
+    edge_type: str = "DERIVES_FROM"  # DERIVES_FROM, LOADS_FROM
     properties: Dict[str, Any] = field(default_factory=dict)
+
 
 @dataclass
 class DependencyEdge:
     source_id: str
     target_id: str
-    edge_type: str = "CONTAINS" # CONTAINS, USES, JOINS
+    edge_type: str = "CONTAINS"  # CONTAINS, USES, JOINS
     properties: Dict[str, Any] = field(default_factory=dict)
+
 
 @dataclass
 class GraphModel:

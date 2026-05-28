@@ -3,11 +3,12 @@ from datetime import datetime, UTC
 from typing import Dict, Any
 from lineage_platform.models.intermediate import GraphModel
 
+
 class OpenLineageAdapter:
     """
-    Transforms the internal Intermediate Metadata GraphModel into standard 
+    Transforms the internal Intermediate Metadata GraphModel into standard
     OpenLineage RunEvent JSON structures.
-    
+
     This abstracts Neo4j away and provides an interoperable metadata format.
     """
 
@@ -17,23 +18,23 @@ class OpenLineageAdapter:
     def to_openlineage_events(self, graph: GraphModel) -> list[Dict[str, Any]]:
         """
         Converts the graph model to a list of OpenLineage RunEvents.
-        Each ProcessNode becomes a Job with a Run, and LineageEdges translate 
+        Each ProcessNode becomes a Job with a Run, and LineageEdges translate
         to inputs and outputs for that Run.
         """
         events = []
-        
+
         # Build lookup for fast navigation
         datasets_by_id = {d.id: d for d in graph.datasets}
-        
+
         now = datetime.now(UTC).isoformat() + "Z"
 
         for process in graph.processes:
             run_id = str(uuid.uuid4())
-            
+
             # Find inputs and outputs for this specific process
             inputs = []
             outputs = []
-            
+
             for edge in graph.lineage_edges:
                 # In a real traversal, we'd map edges directly connected to the process.
                 # For this adapter, we map the datasets directly.

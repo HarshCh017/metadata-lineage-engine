@@ -125,7 +125,7 @@ class GraphWriter:
                     id=self._generate_id(f"qliksheet::{app.app_name}.{sheet.sheet_id}"),
                     app_name=app.app_name
                 )
-                
+
                 for chart in sheet.charts:
                     session.run(
                         """
@@ -140,7 +140,7 @@ class GraphWriter:
                         id=self._generate_id(f"qlikchart::{app.app_name}.{chart.chart_id}"),
                         sheet_id=sheet.sheet_id
                     )
-                    
+
                     for field in chart.fields:
                         session.run(
                             """
@@ -306,7 +306,7 @@ class GraphWriter:
                         table_name=load.table_name,
                         field_name=field,
                     )
-                    
+
                     if field == "*" and load.source_table:
                         session.run(
                             """
@@ -317,7 +317,7 @@ class GraphWriter:
                             source_table=load.source_table,
                             table_name=load.table_name
                         )
-                    
+
                     # §5 — HAS_COLUMN on physical :Table via :Attribute
                     if field in load.sql_columns and load.source_table:
                         physical_col = load.sql_columns[field]

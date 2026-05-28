@@ -1,15 +1,16 @@
-from typing import List
 from lineage_platform.errors.failure_taxonomy import Severity, GraphIntegrityFailure
 from lineage_platform.observability.telemetry import TelemetryManager
 import structlog
 
 logger = structlog.get_logger()
 
+
 class GraphIntegrityVerifier:
     """
     Health checks for the Neo4j ontology.
     Detects structural and temporal corruption.
     """
+
     def __init__(self, neo4j_driver):
         self.driver = neo4j_driver
 

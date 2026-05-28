@@ -1,5 +1,5 @@
-import pytest
 from lineage_platform.parsers.qlikview.comment_cleaner import CommentCleaner
+
 
 def test_single_line_comments():
     script = "LOAD A, B; // this is a comment\nLOAD C, D;"
@@ -8,6 +8,7 @@ def test_single_line_comments():
     assert "LOAD A, B;" in cleaned
     assert "LOAD C, D;" in cleaned
 
+
 def test_multi_line_comments():
     script = "LOAD A, B; /* this is a \n multiline \n comment */ LOAD C, D;"
     cleaned = CommentCleaner.clean_comments(script)
@@ -15,12 +16,14 @@ def test_multi_line_comments():
     assert "LOAD A, B;" in cleaned
     assert "LOAD C, D;" in cleaned
 
+
 def test_rem_comments():
     script = "REM this is a weird legacy comment;\nLOAD A, B;"
     cleaned = CommentCleaner.clean_comments(script)
     assert "REM" not in cleaned
     assert "weird legacy comment" not in cleaned
     assert "LOAD A, B;" in cleaned
+
 
 def test_combined_comments():
     script = """

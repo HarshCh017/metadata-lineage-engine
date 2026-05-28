@@ -1,8 +1,9 @@
 import re
-from typing import Dict, List
+from typing import Dict
 from prometheus_client import Counter
 
 MACRO_EXPANSIONS = Counter("qlikview_macro_expansions_total", "Total $(var) macro expansions performed")
+
 
 class VariableParser:
     """

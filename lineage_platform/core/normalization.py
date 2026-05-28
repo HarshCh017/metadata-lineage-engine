@@ -3,6 +3,7 @@ import structlog
 
 logger = structlog.get_logger()
 
+
 class SemanticNormalizer:
     """
     Semantic Normalization Layer for the Metadata Engine.
@@ -16,7 +17,7 @@ class SemanticNormalizer:
         Normalize the entire graph model in-place (or by returning a cleaned copy).
         """
         original_node_count = len(graph.fields) + len(graph.datasets) + len(graph.transformations)
-        
+
         # 1. Deduplicate Fields by ID
         unique_fields = {}
         for f in graph.fields:
@@ -37,7 +38,7 @@ class SemanticNormalizer:
         # 3. Standardize Casing for Fully Qualified Names
         for d in graph.datasets:
             if d.fully_qualified_name:
-                # Ensure FQN is always upper case to prevent graph fragmentation 
+                # Ensure FQN is always upper case to prevent graph fragmentation
                 # (e.g. 'DB.schema.TABLE' vs 'db.SCHEMA.table')
                 d.fully_qualified_name = d.fully_qualified_name.upper()
 
@@ -49,11 +50,11 @@ class SemanticNormalizer:
         graph.lineage_edges = list(unique_lin_edges.values())
 
         new_node_count = len(graph.fields) + len(graph.datasets) + len(graph.transformations)
-        
+
         if original_node_count != new_node_count:
-            logger.info("normalization_complete", 
+            logger.info("normalization_complete",
                         deduplicated_nodes=original_node_count - new_node_count,
                         final_fields=len(graph.fields),
                         final_datasets=len(graph.datasets))
-            
+
         return graph
