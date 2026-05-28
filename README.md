@@ -11,8 +11,8 @@ An enterprise-grade, deterministic metadata parser that extracts deep data linea
 The parsing pipeline is modular and robust:
 `QVSParser` → `IncludeResolver` → `CommentCleaner` → `VariableParser` → `extract_load_blocks` → `GraphWriter`
 
-Features:
-- **Federated Governance & Policies:** Supports multi-domain namespace isolation, dynamic masking/redaction via the `GovernancePolicyEngine`, and explicit stewardship metadata.
+- **Federated Governance & Policies:** Supports multi-domain namespace isolation, dynamic masking/redaction via the `GovernancePolicyEngine`, and explicit stewardship boundaries (`StewardshipManager`).
+- **Distributed Reliability:** Includes an asynchronous `WorkloadManager` to govern query fanouts and ensure node starvation protection across enterprise topologies.
 - **Enterprise Governance:** See [FEATURES.md](FEATURES.md) for details on Temporal Snapshotting, Trust Propagation, Compaction, and Corpus Validation.
 - **Deep Lineage:** Extracts tables, fields, synthetic keys, subroutines, variables, and cross-dashboard dependencies.
 - **SQL Parsing:** Extracts physical table and column-level lineage directly from embedded SQL queries.
