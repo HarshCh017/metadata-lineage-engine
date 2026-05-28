@@ -126,10 +126,14 @@ Add this snippet to your `claude_desktop_config.json`:
 
 ## 🧪 Testing
 
-The project uses `pytest` for all unit and integration tests.
+The project uses a comprehensive enterprise validation suite including fuzzing, regression, semantic validations, and graph stress testing.
+
+To run the entire governance validation suite, simply execute:
 ```bash
-pytest tests/
+python run_enterprise_test.py
 ```
+
+For a detailed breakdown of the test categories (fuzzing, corpus regression, stress tests, and semantic integrity), see the [TESTING GUIDE](TESTING_GUIDE.md).
 
 ## 📁 Project Structure
 

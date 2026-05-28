@@ -24,14 +24,16 @@ graph TD
 ```
 
 ## 1. Enterprise Governance Guarantees
-- **Temporal Snapshotting**: The graph stores time-bound relationships (`valid_from`, `valid_to`). Users can reconstruct exact historical lineage states using `SnapshotContext`.
-- **Graph Compaction**: Incremental refresh safely retires old lineage relationships. A simulated cold-archive JSON export handles graph compaction for relationships older than 90 days.
-- **Deterministic Hashing**: Node and process IDs are generated deterministically via SHA-256 (canonical strings), guaranteeing idempotent graph idempotency across distributed environments.
+- **Temporal Snapshotting & Replay**: The graph stores time-bound relationships (`valid_from`, `valid_to`). Users can reconstruct exact historical lineage states using the `ReplayEngine` and generate immutable snapshot manifests.
+- **Query Governance Engine**: Direct Cypher access is blocked. All queries are intercepted to enforce traversal budgets, calculate maximum node fanout cost, and ensure temporal safety.
+- **Graph Compaction & Integrity**: Incremental refresh safely retires old lineage relationships. The `GraphIntegrityVerifier` natively detects orphans, cyclic loops, and temporal window overlaps across the database.
+- **Deterministic Hashing**: Node and process IDs are generated deterministically via SHA-256 (canonical strings), guaranteeing graph idempotency across distributed environments.
 
 ## 2. Advanced Parser Correctness
 - **ANTLR4 Grammar Support**: Core QlikView scripting (SET, SQL SELECT, LOAD, RESIDENT) is parsed using a formal ANTLR grammar, significantly reducing AST hallucinations compared to regex-only extraction.
-- **Fallback Resilience Engine**: If the ANTLR grammar encounters an unhandled syntax edge case, the platform automatically falls back to an emergency Regex parser.
-- **Corpus & Fuzzing Validation**: Rigorous unit testing includes random syntax mutation fuzzing (1,000 iterations for CI) and strict JSON structure regressions for semantic "Gold Standards."
+- **Structured Parser Recovery**: The `ParserRecoveryEngine` tracks execution provenance, degrading gracefully through `TOKEN_RECOVERY`, `PARTIAL_BLOCK_RECOVERY`, or `REGEX_FALLBACK`, actively tracking what was salvaged vs inferred.
+- **Multi-Dimensional Confidence**: Lineage nodes are scored across syntax, semantic, transformation, macro-resolution, and temporal confidence vectors, dynamically penalizing unresolvable elements.
+- **Semantic Lineage Validation**: Extracted ASTs are evaluated for logical soundness (join cardinalities, non-deterministic derivations, active unresolved `SELECT *` partial queries).
 
 ## 3. Semantic Normalization & Ontology
 - **Intermediate Adapter**: Transforms messy parser-specific ASTs (`QlikViewApp`, `QVSLoad`) into a unified `GraphModel`.
