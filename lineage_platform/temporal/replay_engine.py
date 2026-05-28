@@ -10,8 +10,9 @@ class ReplayEngine:
     Uses the QueryGovernanceEngine to immutably reconstruct prior lineage states.
     """
 
-    def __init__(self, governance_engine: QueryGovernanceEngine):
+    def __init__(self, governance_engine: QueryGovernanceEngine, policy_engine: Any = None):
         self.governance_engine = governance_engine
+        self.policy_engine = policy_engine
 
     def reconstruct_lineage(self, as_of: str) -> Dict[str, Any]:
         """
@@ -21,8 +22,16 @@ class ReplayEngine:
         
         try:
             state = self.governance_engine.get_snapshot_state(snapshot)
+            nodes = state.get("nodes", [])
+            
+            if self.policy_engine:
+                # Mask BEFORE hash generation
+                nodes = self.policy_engine.apply_masking(nodes)
+                
+            state["nodes"] = nodes
+            
             # Generate deterministic replay manifest hash
-            content_str = str(state.get("nodes", []))
+            content_str = str(nodes)
             manifest_hash = hashlib.sha256(content_str.encode()).hexdigest()
             
             state["manifest_hash"] = manifest_hash

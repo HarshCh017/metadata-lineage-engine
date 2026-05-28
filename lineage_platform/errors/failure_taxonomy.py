@@ -109,3 +109,64 @@ class TraversalBudgetExceeded(GovernanceException):
             confidence_impact=0.0,
             affected_lineage_scope="query_engine"
         )
+
+# Phase 14 Federated Failures
+class PolicyViolationFailure(GovernanceException):
+    def __init__(self, message: str, namespace: str):
+        super().__init__(
+            message,
+            severity=Severity.CRITICAL,
+            recoverability=Recoverability.UNRECOVERABLE,
+            confidence_impact=1.0,
+            affected_lineage_scope=namespace
+        )
+
+class NamespaceIsolationFailure(GovernanceException):
+    def __init__(self, message: str, namespace: str):
+        super().__init__(
+            message,
+            severity=Severity.CRITICAL,
+            recoverability=Recoverability.UNRECOVERABLE,
+            confidence_impact=1.0,
+            affected_lineage_scope=namespace
+        )
+
+class TrustPropagationFailure(GovernanceException):
+    def __init__(self, message: str, namespace: str):
+        super().__init__(
+            message,
+            severity=Severity.ERROR,
+            recoverability=Recoverability.PARTIALLY_RECOVERABLE,
+            confidence_impact=0.5,
+            affected_lineage_scope=namespace
+        )
+
+class ReplayGovernanceFailure(GovernanceException):
+    def __init__(self, message: str, namespace: str):
+        super().__init__(
+            message,
+            severity=Severity.CRITICAL,
+            recoverability=Recoverability.UNRECOVERABLE,
+            confidence_impact=1.0,
+            affected_lineage_scope=namespace
+        )
+
+class TraversalAuthorizationFailure(GovernanceException):
+    def __init__(self, message: str):
+        super().__init__(
+            message,
+            severity=Severity.ERROR,
+            recoverability=Recoverability.FULLY_RECOVERABLE,
+            confidence_impact=0.0,
+            affected_lineage_scope="cross_domain_edge"
+        )
+
+class WorkloadStarvationFailure(GovernanceException):
+    def __init__(self, message: str, namespace: str):
+        super().__init__(
+            message,
+            severity=Severity.WARNING,
+            recoverability=Recoverability.FULLY_RECOVERABLE,
+            confidence_impact=0.0,
+            affected_lineage_scope=namespace
+        )

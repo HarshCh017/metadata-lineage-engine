@@ -1,5 +1,5 @@
 import structlog
-from prometheus_client import Counter, Histogram, REGISTRY
+from prometheus_client import Counter, Histogram, Gauge, REGISTRY
 
 logger = structlog.get_logger()
 
@@ -24,6 +24,11 @@ class TelemetryManager:
             if name in REGISTRY._names_to_collectors:
                 return REGISTRY._names_to_collectors[name]
             return Histogram(name, desc)
+            
+        def get_or_create_gauge(name, desc):
+            if name in REGISTRY._names_to_collectors:
+                return REGISTRY._names_to_collectors[name]
+            return Gauge(name, desc)
 
         cls.FILES_PARSED = get_or_create_counter("qlikview_files_parsed", "Total QlikView files parsed")
         cls.PARSE_FAILURES = get_or_create_counter("qlikview_parse_failures", "Total parse failures")
@@ -50,6 +55,15 @@ class TelemetryManager:
         cls.SEMANTIC_VALIDATION_FAILURES = get_or_create_counter("semantic_validation_failures", "Count of failed semantic validation assertions")
         cls.LINEAGE_DRIFT_RATE = get_or_create_histogram("lineage_drift_rate", "Velocity of lineage structural changes over time")
         
+        # Phase 14 Federated Metrics
+        cls.POLICY_VIOLATIONS_TOTAL = get_or_create_counter("policy_violations_total", "Total policy violations encountered")
+        cls.TRUST_DEGRADATION_RATE = get_or_create_histogram("trust_degradation_rate", "Rate of trust degradation across lineage chains")
+        cls.REPLAY_AUTHORIZATION_FAILURES = get_or_create_counter("replay_authorization_failures", "Count of failed replay authorizations")
+        cls.NAMESPACE_TRAVERSAL_COUNT = get_or_create_counter("namespace_traversal_count", "Count of cross-namespace traversals")
+        cls.WORKLOAD_QUEUE_DEPTH = get_or_create_gauge("workload_queue_depth", "Current depth of workload queues")
+        cls.DISTRIBUTED_SCAN_LATENCY = get_or_create_histogram("distributed_scan_latency_seconds", "Latency of distributed integrity scans")
+        cls.FEDERATED_REPLAY_DURATION = get_or_create_histogram("federated_replay_duration_seconds", "Duration of federated replays")
+
         cls._initialized = True
 
 # Initialize metrics on import

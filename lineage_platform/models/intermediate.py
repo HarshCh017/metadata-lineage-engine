@@ -24,6 +24,14 @@ class ProvenanceMixin:
     created_by_parser: str = field(default="UNKNOWN", kw_only=True)
     ast_node_type: Optional[str] = field(default=None, kw_only=True)
 
+@dataclass
+class GovernanceMixin:
+    namespace_id: str = field(default="default", kw_only=True)
+    domain_owner: str = field(default="UNKNOWN", kw_only=True)
+    sensitivity_level: str = field(default="PUBLIC", kw_only=True)
+    governance_scope: str = field(default="GLOBAL", kw_only=True)
+    trust_zone: str = field(default="UNVERIFIED", kw_only=True)
+
 class TransformationType(str, Enum):
     AGGREGATION = "AGGREGATION"
     FILTER = "FILTER"
@@ -38,7 +46,7 @@ class TransformationType(str, Enum):
     UNKNOWN = "UNKNOWN"
 
 @dataclass
-class TransformationNode(TemporalMixin, ProvenanceMixin):
+class TransformationNode(TemporalMixin, ProvenanceMixin, GovernanceMixin):
     id: str
     expression: str
     transformation_type: TransformationType = TransformationType.UNKNOWN
@@ -60,7 +68,7 @@ class FieldNode(TemporalMixin, ProvenanceMixin):
     properties: Dict[str, Any] = field(default_factory=dict)
 
 @dataclass
-class DatasetNode(TemporalMixin, ProvenanceMixin):
+class DatasetNode(TemporalMixin, ProvenanceMixin, GovernanceMixin):
     id: str
     name: str
     fully_qualified_name: str
@@ -78,7 +86,7 @@ class ProcessNode(TemporalMixin, ProvenanceMixin):
     properties: Dict[str, Any] = field(default_factory=dict)
 
 @dataclass
-class LineageEdge(TemporalMixin, ProvenanceMixin):
+class LineageEdge(TemporalMixin, ProvenanceMixin, GovernanceMixin):
     source_id: str
     target_id: str
     edge_type: str = "DERIVES_FROM" # DERIVES_FROM, LOADS_FROM
