@@ -71,3 +71,45 @@ class IncrementalProcessor:
             res = session.run(cypher, process_id=process_id, now=now).single()
             expired = res["expired_count"] if res else 0
             logger.info("temporal_expiration_complete", process_id=process_id, edges_expired=expired)
+
+    def compact_historical_lineage(self, retention_days: int = 90):
+        """
+        Permanently purge or archive graph components that have been 
+        inactive (is_active=false) for longer than `retention_days`.
+        """
+        import os
+        import json
+        from datetime import datetime, timedelta, UTC
+        
+        cutoff_date = (datetime.now(UTC) - timedelta(days=retention_days)).isoformat()
+        
+        # Simulated cold storage JSON export before hard deletion
+        export_cypher = """
+        MATCH ()-[r]-()
+        WHERE r.is_active = false AND r.valid_to < $cutoff
+        RETURN type(r) as rel_type, properties(r) as props
+        """
+        delete_cypher = """
+        MATCH ()-[r]-()
+        WHERE r.is_active = false AND r.valid_to < $cutoff
+        DELETE r
+        RETURN count(r) AS deleted_count
+        """
+        
+        with self.driver.session() as session:
+            # 1. Export (Mock Archive)
+            archived = session.run(export_cypher, cutoff=cutoff_date)
+            records = [dict(record) for record in archived]
+            
+            if records:
+                os.makedirs("archives", exist_ok=True)
+                archive_path = f"archives/cold_lineage_archive_{int(datetime.now().timestamp())}.json"
+                with open(archive_path, "w") as f:
+                    json.dump(records, f)
+                logger.info("cold_lineage_exported", file=archive_path, records=len(records))
+            
+            # 2. Hard Delete
+            res = session.run(delete_cypher, cutoff=cutoff_date).single()
+            deleted = res["deleted_count"] if res else 0
+            logger.info("graph_compaction_complete", retention_days=retention_days, deleted_edges=deleted)
+

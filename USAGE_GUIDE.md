@@ -1,193 +1,68 @@
-# End-to-End Usage and Testing Guide
+# Metadata Lineage Engine - Step by Step Usage Guide
 
-This guide provides step-by-step instructions on how to use and test the **Metadata Lineage Engine** from the moment you clone the repository.
+## Prerequisites
+- Python 3.11+
+- Neo4j Database (or Docker for Neo4j)
+- `pip install -r requirements.txt`
 
----
-
-## 1. Clone the Repository
-
-First, pull the source code to your local machine:
+## Step 1: Start Neo4j Database
+If you don't have a remote Neo4j instance, start a local one using Docker Compose:
 ```bash
-git clone https://github.com/HarshCh017/metadata-lineage-engine.git
-cd metadata-lineage-engine
-```
-
----
-
-## 2. Setting Up the Local Environment
-
-We recommend using a Python virtual environment to isolate dependencies.
-
-### Windows (PowerShell)
-```powershell
-# Create a virtual environment using Python 3.11
-python -m venv venv
-
-# Activate the virtual environment
-.\venv\Scripts\activate
-
-# Install all required dependencies
-pip install -r requirements.txt
-```
-
-### macOS / Linux
-```bash
-python3.11 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
----
-
-## 3. Configuring the Application
-
-The application requires a running Neo4j database to store the metadata graph.
-
-1. Copy the example environment file:
-   ```bash
-   # Windows
-   copy .env.example .env
-   
-   # macOS/Linux
-   cp .env.example .env
-   ```
-2. Open `.env` and verify the Neo4j connection details. 
-   *(By default, it assumes Neo4j is running on `localhost:7687` with username `neo4j` and password `password`.)*
-
----
-
-## 4. Running Neo4j via Docker (Recommended)
-
-If you don't have Neo4j installed locally, the easiest way to start one is using the provided `docker-compose.yml`.
-
-```bash
-# Start Neo4j in the background
 docker-compose up -d neo4j
 ```
-*Wait a few seconds for the database to initialize.* 
-You can access the Neo4j Browser UI at `http://localhost:7474` to view your data visually.
+This will expose Neo4j on `localhost:7687` and `localhost:7474`.
 
----
-
-## 5. Running the Application API
-
-Start the FastAPI backend server:
-
+## Step 2: Configure Environment
+Copy `.env.example` to `.env` and configure your settings:
 ```bash
-uvicorn lineage_platform.api.app:app --host 0.0.0.0 --port 8000
+cp .env.example .env
 ```
-*The API is now running at `http://localhost:8000`.*
+Ensure `NEO4J_URI`, `NEO4J_USERNAME`, and `NEO4J_PASSWORD` are correct.
+For Graph Compaction, adjust `LINEAGE_RETENTION_DAYS` (default 90).
 
----
-
-## 6. Testing the API (End-to-End Test)
-
-Let's test the engine by parsing one of the provided QlikView test scripts.
-
-### Option A: Using curl
-Open a new terminal window and run:
+## Step 3: Run the API Server
+Start the FastAPI application:
 ```bash
-curl -X POST "http://localhost:8000/parse" \
-     -H "Content-Type: application/json" \
-     -d '{"script_path": "tests/fixtures/qvs/01_simple_load.qvs"}'
+python -m uvicorn lineage_platform.api.app:app --reload --host 0.0.0.0 --port 8000
 ```
+Visit `http://localhost:8000/docs` to see the Swagger UI.
 
-### Option B: Using PowerShell
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8000/parse" -Method POST -Headers @{"Content-Type"="application/json"} -Body '{"script_path": "tests/fixtures/qvs/01_simple_load.qvs"}'
-```
-
-**Expected Result:** You should receive a JSON response indicating success with counts of the tables, fields, and connections processed.
-
----
-
-## 7. Viewing the Lineage Graph
-
-1. Open your browser and navigate to the Neo4j UI: [http://localhost:7474](http://localhost:7474).
-2. Log in with your credentials (default: `neo4j` / `password`).
-3. Run the following Cypher query to see everything you just parsed:
-   ```cypher
-   MATCH (n) RETURN n;
-   ```
-4. You will visually see the `:QlikScript`, `:QlikTable`, `:Table`, and `:Attribute` nodes connected via lineage edges!
-
----
-
-## 8. Running the Automated Test Suite
-
-To verify that the entire codebase is functioning correctly without manually hitting endpoints, run the `pytest` suite:
-
+## Step 4: Parse a Script
+You can submit a Qlik script for parsing via the `/parse` endpoint.
 ```bash
-# Ensure your virtual environment is still activated
-pytest tests/
+curl -X 'POST' \
+  'http://localhost:8000/parse' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "script_path": "tests/data/sample_qvs.qvs",
+  "overwrite": false
+}'
 ```
-*This will execute all unit tests for SQL parsing, field extraction, join logic, and mock graph writes.*
+*Note: If `overwrite: false`, submitting the exact same file twice will bypass the parser using Incremental Hash Detection.*
 
----
+## Step 5: Querying Temporal Lineage
+You can interact with the graph via the MCP server using Claude Desktop, or natively via Python:
+```python
+from lineage_platform.api.services.graph_service import GraphService
+from lineage_platform.models.snapshot import SnapshotContext
 
-## 9. Running with Claude Desktop (Optional MCP Plugin)
+svc = GraphService()
 
-If you want Claude to interact with your graph automatically:
-1. Ensure the API is running (Step 5).
-2. Add the following to your `claude_desktop_config.json`:
-   ```json
-   {
-     "mcpServers": {
-       "qlik-lineage": {
-         "command": "python",
-         "args": ["-m", "lineage_platform.mcp_server"],
-         "env": {
-           "NEO4J_URI": "bolt://localhost:7687",
-           "NEO4J_USERNAME": "neo4j",
-           "NEO4J_PASSWORD": "password"
-         }
-       }
-     }
-   }
-   ```
-3. Restart Claude Desktop. You can now ask Claude questions like, *"What tables does the Sales dashboard use?"*
+# Current Active Lineage
+print(svc.get_table_lineage("db.schema.target_table"))
 
----
+# Historical Lineage (Time Travel)
+snapshot = SnapshotContext(as_of_timestamp="2024-01-01T00:00:00Z")
+print(svc.get_table_lineage("db.schema.target_table", snapshot=snapshot))
+```
 
-## 10. Running Enterprise Benchmarks
+## Step 6: Observability
+Visit `http://localhost:8000/metrics` to scrape Prometheus telemetry.
 
-To validate the engine's throughput and Neo4j batch insertion performance:
-1. Ensure your Neo4j database is running (Step 4).
-2. Run the benchmarking suite:
-   ```bash
-   python benchmarks/run_benchmarks.py
-   ```
-*This generates a synthetic 50,000-line script and benchmarks parsing throughput, peak memory usage (via `tracemalloc`), and AST fallback rates. It then tests graph insertion speed using `BatchGraphWriter` via UNWIND. All results are saved as historical snapshots in `benchmarks/results/`.*
-
----
-
-## 11. OpenLineage Export Interoperability
-
-You can seamlessly export the internal `GraphModel` to standard OpenLineage JSON specifications.
-Run the API (Step 5) and hit the export endpoint:
+## Step 7: Run Benchmarks (Optional)
+To validate the system scale and temporal overhead on your hardware:
 ```bash
-curl -X GET "http://localhost:8000/export/openlineage?namespace=qlikview://enterprise"
+python benchmarks/run_benchmarks.py
 ```
-*This triggers semantic normalization and outputs `RunEvent` structures mapped from the graph.*
-
----
-
-## 12. Generating the ANTLR AST Parser (Advanced)
-
-We are transitioning the parser from regex-based extraction to a formal AST using ANTLR4.
-If you wish to modify the grammar (`lineage_platform/grammar/qlikview/*.g4`) and re-generate the Python parser:
-
-1. Ensure you have Java installed (`java -version`).
-2. Download the ANTLR4 tool:
-   ```bash
-   # Windows (PowerShell)
-   Invoke-WebRequest -Uri "https://www.antlr.org/download/antlr-4.13.1-complete.jar" -OutFile "antlr-4.13.1-complete.jar"
-   
-   # macOS/Linux
-   curl -O https://www.antlr.org/download/antlr-4.13.1-complete.jar
-   ```
-3. Generate the Python3 target code:
-   ```bash
-   java -jar antlr-4.13.1-complete.jar -Dlanguage=Python3 lineage_platform/grammar/qlikview/QlikViewLexer.g4 lineage_platform/grammar/qlikview/QlikViewParser.g4 -visitor -o lineage_platform/parsers/qlikview/generated/
-   ```
-*This generates `QlikViewLexer` and `QlikViewParser` classes inside `parsers/qlikview/generated/`, which are securely leveraged by `ANTLRQVSParser`.*
+This will run the Incremental Refresh test, the Graph Write Batch test, and the Temporal Overhead test.

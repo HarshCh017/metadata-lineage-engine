@@ -8,12 +8,24 @@ from lineage_platform.models.qlik_models import QlikViewApp
 
 logger = structlog.get_logger()
 
+from enum import Enum
+
+class ParserFailureType(Enum):
+    SYNTAX_ERROR = "SYNTAX_ERROR"
+    TOKENIZATION_ERROR = "TOKENIZATION_ERROR"
+    RECURSION_LIMIT = "RECURSION_LIMIT"
+    MACRO_RESOLUTION_ERROR = "MACRO_RESOLUTION_ERROR"
+    AST_OVERFLOW = "AST_OVERFLOW"
+    TIMEOUT = "TIMEOUT"
+    UNKNOWN = "UNKNOWN"
+
 @dataclass
 class ParseResultMetadata:
     parser_engine: str
     fallback_triggered: bool
     parse_duration_ms: float
     errors: list[str]
+    failure_type: ParserFailureType = ParserFailureType.UNKNOWN
 
 class ParserFailure(Exception):
     pass
@@ -76,7 +88,7 @@ class ANTLRQVSParser:
             metadata.errors.append(str(e))
             
             # Execute emergency regex parser
-            script_node = self.regex_parser.parse(content)
+            script_node = self.regex_parser.parse(content=content)
 
         except Exception as e:
             # Catch memory overflows or deep recursion limits
@@ -85,7 +97,7 @@ class ANTLRQVSParser:
             metadata.parser_engine = "REGEX_FALLBACK"
             metadata.errors.append(f"Critical overflow: {str(e)}")
             
-            script_node = self.regex_parser.parse(content)
+            script_node = self.regex_parser.parse(content=content)
 
         metadata.parse_duration_ms = (time.time() - start_time) * 1000
         

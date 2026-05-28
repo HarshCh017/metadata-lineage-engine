@@ -1,0 +1,14 @@
+{
+  "datasets": [
+    {
+      "id": "mock_id",
+      "name": "UNKNOWN_TABLE",
+      "fully_qualified_name": "UNKNOWN.UNKNOWN.UNKNOWN_TABLE",
+      "layer": "source",
+      "fields": [
+        {"name": "Field1"},
+        {"name": "Field2 FROM [lib:"}
+      ]
+    }
+  ]
+}

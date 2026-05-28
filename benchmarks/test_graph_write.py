@@ -1,18 +1,25 @@
 import time
 import os
-from lineage_platform.models.intermediate import GraphModel, DatasetNode, LineageEdge
+from lineage_platform.models.intermediate import GraphModel, DatasetNode, LineageEdge, FieldNode
 from lineage_platform.neo4j.batch_writer import BatchGraphWriter
-from lineage_platform.neo4j.graph_writer import GraphWriter
 from lineage_platform.models.qlik_models import QlikViewApp, QVSLoad
 
-def run_write_benchmark(num_nodes=5000):
-    print(f"Generating synthetic graph with {num_nodes} nodes and {num_nodes} edges...")
+def run_write_benchmark(num_tables=1000, num_columns_total=50000):
+    print(f"Generating synthetic graph with {num_tables} tables and {num_columns_total} columns...")
     
     # 1. Setup intermediate graph for Batch Writer
     graph = GraphModel()
-    for i in range(num_nodes):
+    cols_per_table = num_columns_total // num_tables
+    
+    for i in range(num_tables):
         node = DatasetNode(id=f"benchmark_{i}", name=f"Table_{i}", fully_qualified_name=f"db.schema.Table_{i}")
         graph.datasets.append(node)
+        
+        # Add realistic columns
+        for c in range(cols_per_table):
+            field = FieldNode(id=f"benchmark_{i}_col_{c}", name=f"Col_{c}", data_type="VARCHAR")
+            graph.fields.append(field)
+            
         if i > 0:
             graph.lineage_edges.append(LineageEdge(source_id=f"benchmark_{i}", target_id=f"benchmark_{i-1}"))
 
@@ -32,9 +39,11 @@ def run_write_benchmark(num_nodes=5000):
     batch_duration = time.time() - start_batch
     batch_writer.close()
     
+    total_nodes = num_tables + num_columns_total
+    
     print("-" * 40)
     print(f"Batch Write Time: {batch_duration:.3f} seconds")
-    print(f"Batch Throughput: {num_nodes / batch_duration:.2f} nodes/sec")
+    print(f"Batch Throughput: {total_nodes / batch_duration:.2f} nodes/sec")
     print("-" * 40)
     
     import json
@@ -42,10 +51,11 @@ def run_write_benchmark(num_nodes=5000):
     result = {
         "timestamp": datetime.now().isoformat(),
         "benchmark": "neo4j_write",
-        "num_nodes": num_nodes,
+        "num_tables": num_tables,
+        "num_columns": num_columns_total,
         "normalization_seconds": norm_duration,
         "batch_write_seconds": batch_duration,
-        "throughput_nodes_sec": num_nodes / batch_duration
+        "throughput_nodes_sec": total_nodes / batch_duration
     }
     
     os.makedirs("benchmarks/results", exist_ok=True)

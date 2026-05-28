@@ -35,28 +35,31 @@ class QVSParser:
     # MAIN PARSE METHOD
     # =====================================================
 
-    def parse(self, file_path: str) -> QlikViewApp:
-
-        path = Path(file_path)
-
-        import charset_normalizer
-        try:
-            matches = charset_normalizer.from_path(path)
-            best_match = matches.best()
-            if best_match:
-                content = str(best_match)
-            else:
+    def parse(self, file_path: Optional[str] = None, *, content: Optional[str] = None) -> QlikViewApp:
+        path = Path(file_path) if file_path else None
+        
+        if content is None:
+            if not path:
+                raise ValueError("Must provide either content or file_path")
+            import charset_normalizer
+            try:
+                matches = charset_normalizer.from_path(path)
+                best_match = matches.best()
+                if best_match:
+                    content = str(best_match)
+                else:
+                    with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                        content = f.read()
+            except Exception:
                 with open(path, "r", encoding="utf-8", errors="ignore") as f:
                     content = f.read()
-        except Exception:
-            with open(path, "r", encoding="utf-8", errors="ignore") as f:
-                content = f.read()
 
         # -------------------------------------------------
         # Resolve includes
         # -------------------------------------------------
 
-        content = IncludeResolver.resolve_includes(content, path)
+        if path:
+            content = IncludeResolver.resolve_includes(content, path)
 
         # -------------------------------------------------
         # Clean comments
@@ -113,7 +116,8 @@ class QVSParser:
         # Create app
         # -------------------------------------------------
 
-        app = QlikViewApp(app_name=path.stem)
+        app_name = path.stem if path else "UNKNOWN_APP"
+        app = QlikViewApp(app_name=app_name)
         app.subroutines = subroutines
         app.dropped_tables = dropped_tables
         app.dropped_fields = dropped_fields

@@ -21,6 +21,9 @@ def run_benchmarks():
     print("\n[3] Running Incremental Refresh Benchmark...")
     subprocess.run([sys.executable, "benchmarks/test_incremental.py"], env=env)
     
+    print("\n[4] Running Temporal Query Benchmark...")
+    subprocess.run([sys.executable, "benchmarks/test_temporal_benchmark.py"], env=env)
+    
     print("\n=" * 60)
     print(" BENCHMARKS COMPLETE ")
     print("=" * 60)

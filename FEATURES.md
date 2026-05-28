@@ -1,38 +1,28 @@
-# Metadata Lineage Engine - Enterprise Features
+# Metadata Lineage Engine - Features & Guarantees
 
-The Metadata Lineage Engine is a platform-grade parser and metadata extraction system built for scale. It transitions legacy Business Intelligence and Data Warehouse scripts into a deterministic, fully graph-traversable ontology.
+This document outlines the core capabilities of the Metadata Lineage Engine (Phase 12). 
 
-## Core Capabilities
+Unlike standard lineage extractors, this engine prioritizes **enterprise governance guarantees**, **temporal correctness**, and **observability**.
 
-### 1. Multi-Stage Deterministic Parser
-- **Abstract Syntax Tree (AST) Entrypoint**: Uses ANTLR4 for robust, deeply hierarchical tokenization and extraction.
-- **Fail-Safe Regex Engine**: Automatically falls back to a highly-tuned regex traversal engine if AST limits are reached, ensuring zero metadata drops.
-- **Cross-Platform**: Architected originally for QlikView but extensible to Snowflake, dbt, and other data warehouses.
+## 1. Enterprise Governance Guarantees
+- **Temporal Snapshotting**: The graph stores time-bound relationships (`valid_from`, `valid_to`). Users can reconstruct exact historical lineage states using `SnapshotContext`.
+- **Graph Compaction**: Incremental refresh safely retires old lineage relationships. A simulated cold-archive JSON export handles graph compaction for relationships older than 90 days.
+- **Deterministic Hashing**: Node and process IDs are generated deterministically via SHA-256 (canonical strings), guaranteeing idempotent graph idempotency across distributed environments.
 
-### 2. Deep Lineage Extraction
-- **Physical to Logical Mapping**: Traces physical database columns (`:Table`) into intermediate transformation layers (`:QlikTable`) and final Dashboard UI elements (`:QlikChart` / `:QlikSheet`).
-- **Macro & Variable Resolution**: Recursively resolves and expands embedded `$(Include=...)` statements and dynamic variables (up to configurable nesting depths).
-- **Embedded SQL Tracing**: Identifies and parses SQL strings embedded inside BI tool loads (e.g. `SQL SELECT * FROM ...`).
+## 2. Advanced Parser Correctness
+- **ANTLR4 Grammar Support**: Core QlikView scripting (SET, SQL SELECT, LOAD, RESIDENT) is parsed using a formal ANTLR grammar, significantly reducing AST hallucinations compared to regex-only extraction.
+- **Fallback Resilience Engine**: If the ANTLR grammar encounters an unhandled syntax edge case, the platform automatically falls back to an emergency Regex parser.
+- **Corpus & Fuzzing Validation**: Rigorous unit testing includes random syntax mutation fuzzing (1,000 iterations for CI) and strict JSON structure regressions for semantic "Gold Standards."
 
-### 3. Enterprise Knowledge Graph (Neo4j)
-- **High-Performance Batches**: Utilizes `apoc.periodic.iterate` (UNWIND) to insert tens of thousands of nodes and edges per second asynchronously.
-- **Deterministic Hashing**: Utilizes SHA-256 (truncated to 16 hex chars) to consistently map fields, preventing graph duplication and allowing disparate parsers to merge identical physical tables seamlessly.
-- **Semantic Normalization**: Automates casing and schema path deduplication, producing a perfectly stable ontology.
+## 3. Semantic Normalization & Ontology
+- **Intermediate Adapter**: Transforms messy parser-specific ASTs (`QlikViewApp`, `QVSLoad`) into a unified `GraphModel`.
+- **Semantic Normalizer**: Deduplicates tables, standardizes casing, handles partial lineage (unresolved SQL `SELECT *`), and merges fragmented data assets into a cohesive logical layer.
 
-### 4. Interoperability & Open Standards
-- **OpenLineage Support**: Native export functionality that abstracts the underlying graph into standard `RunEvent` specs (`GET /export/openlineage`).
-- **Modular Intermediate Model**: The `GraphModel` acts as a middle-ware decoupling parsing logic from graph insertion logic.
+## 4. Incremental Change Awareness
+- **Composite Hash Detection**: Before parsing, the engine hashes the script content, dependencies, and parser version. If no structural changes occurred, the expensive graph regeneration is bypassed entirely (`O(1)` skipping).
+- **Temporal Edge Expiration**: If a script *did* change, the system expires the old subgraph temporally (setting `is_active=false`) rather than deleting it.
 
-### 5. Secure AI Integration (MCP)
-- **Claude Desktop Native**: Ships with an MCP (Model Context Protocol) server to instantly grant AI agents deep context on your data landscape.
-- **Defense-In-Depth Security**: The AI layer enforces `READ_ACCESS` driver boundaries, blocks mutative Cypher keywords (`CREATE`, `MERGE`, `DROP`), and bounds queries automatically with `LIMIT` and strict timeouts.
-
-### 6. Production Observability
-- **Prometheus Telemetry**: Real-time tracking of graph insert latencies, fallback rates, and throughput.
-- **Structured Logging**: Deep JSON traces via `structlog` allowing Splunk/Datadog integration.
-- **Automated Benchmarking**: Built-in CLI tools to track maximum memory allocation (via `tracemalloc`) and file parse MB/s directly out of the box.
-
-### 7. Deployment Ready
-- **Kubernetes**: Fully configured Helm charts for enterprise deployments.
-- **Docker**: Simple `docker-compose` stacks for instant local deployment.
-- **FastAPI Backend**: Fully asynchronous ReST interface powering the metadata ingestion.
+## 5. Operational Telemetry & MCP
+- **Prometheus Observability**: Native tracking of parser fallback rates, AST mutation counts, parse latencies, and total graph node operations. Available at `/metrics`.
+- **Model Context Protocol (MCP)**: Native Claude Desktop integration exposing tools (`search_tables`, `get_table_lineage`, `get_dashboard_metrics`, `get_script_subroutines`) to AI agents, backed by a clean `GraphService` abstraction.
+- **Structured JSON Logging**: Every sub-component emits deterministic `structlog` events for enterprise log aggregation (ELK/Splunk).
