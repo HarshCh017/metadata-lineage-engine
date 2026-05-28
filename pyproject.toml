@@ -13,6 +13,7 @@ neo4j = "*"
 sqlglot = "*"
 prometheus-client = "*"
 structlog = "*"
+mcp = "*"
 charset-normalizer = "*"
 
 [tool.black]
