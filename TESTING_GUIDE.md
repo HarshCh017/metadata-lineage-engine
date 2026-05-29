@@ -35,3 +35,108 @@ Validates the `QueryGovernanceEngine` boundaries:
 Ensures that the output of the parser represents mathematically valid lineage:
 - No orphaned active fields inside derivations.
 - Non-deterministic mappings (e.g. `SELECT *` from unknown sources) correctly downgrade confidence.
+
+---
+
+# Step-by-Step Practical Validation Guide
+
+Follow these steps to fully verify the Metadata Lineage Engine locally in your VS Code environment.
+
+## 1. Environment Setup
+
+First, ensure your virtual environment is activated and you have all the updated dependencies installed:
+
+```powershell
+# 1. Activate your virtual environment (if not already active)
+.\.venv\Scripts\activate
+
+# 2. Install all requirements
+pip install -r requirements.txt
+```
+
+## 2. Start the Graph Database
+
+The engine requires Neo4j to store the extracted lineage graph.
+
+```powershell
+# Start Neo4j in the background via Docker
+docker-compose up -d neo4j
+```
+
+Wait a few seconds for the database to fully initialize.
+
+## 3. Manual API Verification
+
+Once the tests pass, start the live API server:
+
+```powershell
+python -m uvicorn lineage_platform.api.app:app --reload
+```
+
+When you see `Application startup complete`, follow these steps to manually push a payload:
+
+1. Open your browser and go to [http://localhost:8000/docs](http://localhost:8000/docs).
+2. Expand the **Lineage** section and click on `POST /api/v1/parse`.
+3. Click **"Try it out"**.
+4. In the request body, use the absolute path to our enterprise test QVS file (adjust the `C:\` path if your desktop path differs):
+   ```json
+   {
+     "script_path": "C:\\Users\\HarshChauhan\\Desktop\\metadata-lineage-engine\\data\\input\\qlikview\\99_enterprise_lineage_test.qvs",
+     "overwrite": true
+   }
+   ```
+5. Click **Execute**.
+6. You should immediately see a `200 OK` response with a JSON body indicating `"status": "success"`.
+
+## 4. Verify the Graph (Neo4j)
+
+Finally, verify the nodes and edges were properly written to Neo4j.
+
+1. Open [http://localhost:7474](http://localhost:7474) in your browser.
+2. Log in with Username: `neo4j` and Password: `password` (if prompted).
+3. Ensure the active database at the top left is set to **`neo4j`** (not `system`).
+4. Try running the following **Cypher queries** in the top command bar to explore different aspects of your metadata lineage:
+
+### Basic Graph Overview
+See everything (up to 100 nodes) to verify the data was inserted:
+```cypher
+MATCH (n) RETURN n LIMIT 100
+```
+
+### View Only Tables and Their Connections
+See all tables and how data flows between them. (Note: Qlik tables are labeled `QlikTable`):
+```cypher
+MATCH p=(:QlikTable)-[r:DERIVES_FROM_TABLE]->(:QlikTable)
+RETURN p LIMIT 50
+```
+
+### Trace Full Upstream Lineage for a Dashboard
+Find the specific dashboard dataset, and trace all the way back to the source Qlik tables:
+```cypher
+MATCH p=(d:Dataset {name: 'DashboardDataset'})-[*1..5]->(source:QlikTable)
+RETURN p
+```
+
+### View Tables and Their Extracted Fields
+Since field-level lineage is not mapped in this phase, use this to see all fields attached to their tables:
+```cypher
+MATCH p=(t:QlikTable)-[:HAS_FIELD]->(a:Attribute)
+RETURN p LIMIT 50
+```
+
+### View How Tables Join Together
+See the explicit JOIN relationships extracted by the parser:
+```cypher
+MATCH p=(:QlikTable)-[r:JOINS_WITH]->(:QlikTable)
+RETURN p
+```
+
+### Count Everything by Node Type
+Get a statistical breakdown of everything the parser extracted:
+```cypher
+MATCH (n)
+RETURN labels(n) as Type, count(n) as Count
+ORDER BY Count DESC
+```
+
+You will see a beautiful graph visualization of the tables, fields, processes, and their lineage relationships!
