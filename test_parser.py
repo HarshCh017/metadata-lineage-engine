@@ -1,11 +1,11 @@
 from pathlib import Path
 import json
 
-from lineage_platform.parsers.qlikview.qlikview_parser import QlikViewParser
+from lineage_platform.parsers.qlikview.qvs_parser import QVSParser
 
 INPUT_DIR = Path("data/input/qlikview")
 
-parser = QlikViewParser()
+parser = QVSParser()
 
 qvs_files = [
     f for f in INPUT_DIR.glob("*.qvs")
@@ -21,7 +21,7 @@ for qvs_file in qvs_files:
     print("=" * 80)
 
     try:
-        result = parser.parse_file(qvs_file)
+        result = parser.parse(file_path=str(qvs_file))
 
         # If using Pydantic model
         if hasattr(result, "model_dump"):
