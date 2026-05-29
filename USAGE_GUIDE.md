@@ -85,19 +85,22 @@ Key metrics to monitor:
 - `lineage_fallback_rates_total`
 - `lineage_parse_latency_seconds`
 
-## Step 8: Validation & Benchmarks
-To run the fuzzing validations to ensure parser correctness:
+## Step 8: Enterprise Validation & Benchmarks
+To run the full suite of enterprise tests (including Semantic Validation, Fuzzing, Temporal Benchmarks, and Federated Scale):
 ```bash
-python -m pytest tests/fuzzing/ -v
+python run_enterprise_test.py
 ```
+This single command orchestrates:
+1. Core Validations (Unit, Integration, Semantic).
+2. High-Density Graph Stress Tests (simulating 10M relationships).
+3. Temporal Latency Benchmarks (verifying SLA bounds for time-travel queries).
+4. Federated Workload Benchmarks (testing asynchronous priority queues and governance policy evaluation under load).
 
-To validate the semantic ontology against the gold standard corpus:
-```bash
-python -m pytest tests/corpus/ -v
+## Step 9: Federated Policies & Trust Propagation
+The platform now actively enforces namespace isolation. Queries crossing boundaries (e.g., namespace `finance` to `hr`) require explicit authorization through the `GovernancePolicyEngine`.
+To trigger a distributed trust propagation scan across your enterprise graph:
+```python
+from lineage_platform.governance.trust_engine import TrustEngine
+engine = TrustEngine()
+engine.propagate_trust() # Downgrades downstream artifacts if upstream dependencies lose trust
 ```
-
-To validate the system scale and temporal overhead on your hardware:
-```bash
-python benchmarks/run_benchmarks.py
-```
-This will execute the Incremental Refresh test, the Graph Write Batch test (simulating 1,000 tables / 50,000 columns), and the Temporal Overhead test.
